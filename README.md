@@ -12,7 +12,7 @@ Discuss: Value proposition: Your will propose a machine learning system that can
 | Name                            | Responsible for | Link to their commits in this repo |
 |---------------------------------|-----------------|------------------------------------|
 | Zeqiao Huang                 | model training |                                    |
-| Siyuan Zhang                 |  model serving and monitoring |                                    |
+| Siyuan Zhang                 |  model serving and monitoring |    https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits?author=Jasonzzzz28                                |
 | Junzhi Chen                   |       data pipeline          |                                    |
 | Chuangyu Xu                  |      continuous X pipeline           |                                    |
 
