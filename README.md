@@ -11,11 +11,10 @@ Discuss: Value proposition: Your will propose a machine learning system that can
 
 | Name                            | Responsible for | Link to their commits in this repo |
 |---------------------------------|-----------------|------------------------------------|
-| All team members                |                 |                                    |
-| Team member 1                   |                 |                                    |
-| Team member 2                   |                 |                                    |
-| Team member 3                   |                 |                                    |
-| Team member 4                   |                 |                                    |
+| Zeqiao Huang                 | model training |                                    |
+| Siyuan Zhang                 |  model serving and monitoring |                                    |
+| Junzhi Chen                   |       data pipeline          |                                    |
+| Chuangyu Xu                  |      continuous X pipeline           |                                    |
 
 
 
