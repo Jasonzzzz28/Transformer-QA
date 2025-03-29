@@ -59,11 +59,11 @@ Discuss: Value proposition: Your will propose a machine learning system that can
 
 #### Data pipeline
 
-##### Persistent storage
+**Persistent storage**
 
 Following the example of Lab 8, we will provision persistent storage on Chameleon, which may be attached to and detached from our infrastructure. This will store all materials that should persist for the duration of the project, but are not tracked in Git: model training artifacts, test artifacts, models, container images, data.
 
-##### Offline data
+**Offline data**
 
 In this project, we aim to construct a high-quality internal QA dataset using the [HuggingFace Transformers Project](https://github.com/huggingface/transformers) as the internal knowledge base. The goal is to extract meaningful question-answer pairs from various components of the project to support the training of a retrieval-augmented generation (RAG) QA system tailored to this domain.
 
@@ -106,11 +106,11 @@ Example structure of the data:
 
 The resulting dataset will be indexed using dense retrieval techniques and used to power a RAG-based LLM capable of answering technical questions about the Transformers codebase and its development history.
 
-##### Data pipelines
+**Data pipelines**
 
 Our data pipeline is designed to support continuous learning and adaptation of a RAG-based QA system built on the HuggingFace Transformers repository. It consists of two main components: upstream monitoring and data extraction, and downstream user feedback handling.
 
-**Upstream: Continuous Monitoring and QA Pair Generation**
+***Upstream: Continuous Monitoring and QA Pair Generation***
 
 We implement an automated monitoring system that continuously tracks updates in the Transformers GitHub repository. The system detects:
 
@@ -124,7 +124,7 @@ We implement an automated monitoring system that continuously tracks updates in 
 
 Upon detecting updates, the pipeline automatically extracts the relevant content and start the data generation pipeline. These QA pairs are stored temporarily in a staging buffer. Once a sufficient number of QA pairs are collected, they are added to the main QA dataset. This triggers an automatic retraining or fine-tuning process for the model, ensuring that the system stays up-to-date with the latest changes in the codebase and community discussions.
 
-**Downstream: User Feedback and Iterative Refinement**
+***Downstream: User Feedback and Iterative Refinement***
 
 On the serving side, we continuously collect user feedback on the generated responses. When a user flags a response as incorrect or unhelpful, the associated QA query is logged along with the model's output and user-provided annotations (if any).
 
@@ -136,10 +136,40 @@ Automatic correction using a feedback-aware refinement model (e.g., instruction-
 
 Corrected QA pairs are validated and added back into the dataset. Once enough feedback-corrected examples are accumulated, a new round of retraining is triggered. This enables the model to gradually improve over time by learning from its past mistakes and user interactions.
 
-##### Online data
+**Online data**
+
+To simulate real-world usage and support real-time inference, I will implement a streaming data pipeline that handles online query data in near real-time.
+
+The pipeline will consist of:
+
+- An online query handler that receives incoming questions (e.g., via a REST API or simulated queue) and sends the queries to the RAG model.
+
+- A monitoring layer to log incoming queries, model responses, and latency metrics for further analysis or retraining triggers.
+
+- A simulation script that continuously sends pseudo-realistic user queries to feed into the system.
+
+For the simulated online data, we will use the mannully design question as the simulated queries.
+
+**Difficulty points: Interactive data dashboard**
+
+To provide transparency and insight into the internal QA dataset and system performance, I will develop an interactive data dashboard for the team. This dashboard will help track the health, quality, and growth of the dataset over time, as well as monitor the behavior of the deployed QA system.
+
+The dashboard will include:
+
+Dataset Overview: Total number of QA pairs, categorized by source type (code, issues, commits, documentation, etc.) and time of generation.
+
+Data Quality Metrics: Automatic scores such as LLM confidence, hallucination detection rate, and manual feedback stats (e.g., number of bad responses flagged by users).
+
+Retraining Activity: Visual indicators of retraining cycles, including model versioning, training data volume, and before-after performance metrics.
+
+Online Inference Monitoring: Real-time charts displaying incoming user queries (simulated or real), response latency, error rates, and trending questions.
+
+Interactive Filtering: Team members will be able to filter the data by source, time range, model version, or quality score to perform targeted analysis.
+
+The dashboard will serve as a central control panel for understanding and managing the evolving QA system.
 
 
-##### Difficulty points: Interactive data dashboard
+
 
 #### Continuous X
 
