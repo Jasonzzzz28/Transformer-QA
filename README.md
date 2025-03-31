@@ -55,7 +55,122 @@ Discuss: Value proposition: Your will propose a machine learning system that can
 
 #### Model serving and monitoring platforms
 
-<!-- Make sure to clarify how you will satisfy the Unit 6 and Unit 7 requirements,  and which optional "difficulty" points you are attempting. -->
+***Model Serving***
+
+**Serving from an API Endpoint** 
+
+- Backend: We will expose our fine-tuned LLaMA-3.3-70B model through a REST API using FastAPI. The API will accept JSON requests containing user questions and return responses in JSON format.
+
+- Frontend: A Flask-based web interface will handle user interactions and send requests to the FastAPI backend for real-time predictions.
+
+- Endpoint Accessibility: The API will be hosted on Chameleon Cloud and accessible via a configurable URL.
+
+**Requirements** 
+
+- Model Size: The expected size of the trained and optimized Llama 3.3 70b model is approximately 140GB (70 billion parameters * 2 bytes per parameter in FP16 precision). This model will be stored in persistent storage on Chameleon (as defined in Unit 8).
+
+- Throughput (Batch Inference): We anticipate a relatively low batch inference requirement. We aim for 6 - 12 QPS.
+
+- Latency (Online Inference): For real-time question answering, we aim to achieve a latency of 500ms - 3s per request. While not strictly real-time, this latency is crucial for a responsive and interactive user experience.
+
+- Concurrency (Cloud Deployment): Our cloud deployment on Chameleon must support a concurrency of 8 simultaneous requests to handle concurrent users asking questions. This represents a minimal concurrency requirement for our prototype.
+
+**Model Optimizations**
+
+- Model Format: Convert to ONNX for broader optimization support.
+
+- Graph Optimization: Utilize ONNX Runtime's graph optimizations.
+
+- Quantization: Implement INT8 quantization, allowing a maximum accuracy loss of 0.01 (on validation set).
+
+- Execution Provider: Benchmark and select the faster performer between CUDA and TensorRT execution providers within ONNX Runtime.
+
+**System Optimizations**
+
+- Model Server: Utilize Triton Inference Server with the ONNX backend for efficient execution of the optimized Llama 3.3 70b model.
+
+- Scaling: Deploy the model across 2 GPUs, with 2 Triton instances running on each GPU.
+
+- Concurrency: Configure each Triton instance to handle a concurrency of 2, resulting in a total system concurrency of 8.
+
+- Batching Strategy: Enable Triton's dynamic batching for efficient request aggregation.
+
+<br>
+
+***Evaluation and monitoring***
+
+**Offline Evaluation**
+
+Automated testing after training:
+
+- Standard/Domain Use Cases: Evaluate on the Transformers documentation test set.
+
+- Population/Slice Analysis: Analyze performance on different question categories and complexities.
+
+- Known Failure Modes: Test for adversarial prompts, hallucinations, and reasoning limitations.
+
+- Unit Tests: Verify basic factual questions.
+
+- Metrics: Track F1, Exact Match, Precision, and Recall.
+
+- Model Registration: Register new model only if it exceeds performance thresholds.
+
+**Staging Load Test**
+
+Using load testing frameworks, like Locust, simulate concurrent users and measure:
+
+- QPS (Target: 6-12)
+
+- Latency (Target: 500ms - 3s)
+
+- Error Rate
+
+- Resource Utilization (CPU/GPU)
+
+- Optimize resources based on results
+
+**Canary Online Evaluation** 
+
+We will conduct online evaluations in a canary environment by role-playing distinct user personas (novice, experienced developer, researcher). We'll generate questions representative of each persona and assess the model's usefulness and accuracy on these simulated interactions, in addition to standard load test metrics (QPS, latency, error rate).
+
+For example:
+
+- Novice User: "What is a Transformer?" "How do I load a pre-trained model?"
+
+- Experienced Developer: "How do I fine-tune a Trainer with FSDP?" "What are the expected input formats for pipeline?"
+
+- Researcher: "What are the key differences between BERT and RoBERTa?" "How does the attention mechanism work in Longformer?"
+
+**Close the Loop** 
+
+We will gather feedback about the quality of the model's predictions through:
+
+- User feedback (thumbs up/down) within the front end.
+
+- Periodic review and annotation of model outputs by human annotators to identify and correct errors, biases, or areas for improvement.
+
+**Business Evaluation** 
+
+- Tracking Active Users: Monitoring the number of daily/weekly active users interacting with the QA bot.
+
+- Measuring Task Completion Rates: Analyzing whether users are able to more quickly resolve coding problems or understand the codebase with the help of the QA bot. This might be inferred from usage patterns, like time spent viewing documentation after a QA interaction.
+
+- Conducting User Surveys: Collecting qualitative feedback from users regarding their satisfaction with the bot and how it impacts their workflow.
+
+- Monitoring Support Ticket Volume: Observing if the QA bot leads to a reduction in the number of support tickets related to the Transformers library, indicating improved self-service and code understanding.
+
+**Monitor for model degradation**
+
+- User Feedback Tracking: Continuously monitor user ratings (thumbs up/down) to detect declines in satisfaction.
+
+- Human Annotator Analysis: Track correction frequency to identify recurring model errors.
+
+- Canary Deployments: Test new models with a small portion of live traffic while comparing performance against the current model to prevent regressions.
+
+- Automatic Retraining: Set performance thresholds (e.g., rating drops or error increases) to trigger retraining with fresh labeled data.
+
+<br>
+<br>
 
 #### Data pipeline
 
