@@ -59,9 +59,9 @@ Discuss: Value proposition: Your will propose a machine learning system that can
 
 **Serving from an API Endpoint** 
 
-- Backend: We will expose our fine-tuned LLaMA-3.3-70B model through a REST API using FastAPI. The API will accept JSON requests containing user questions and return responses in JSON format.
+- Backend: We will deploy our fine-tuned LLaMA-3.3-70B model using NVIDIA Triton Inference Server, exposing it through a REST API. The API will accept JSON-formatted requests containing user questions and return predictions in JSON format.
 
-- Frontend: A Flask-based web interface will handle user interactions and send requests to the FastAPI backend for real-time predictions.
+- Frontend: A Flask-based web interface will handle user interactions and send requests to the NVIDIA Triton backend for real-time predictions.
 
 - Endpoint Accessibility: The API will be hosted on Chameleon Cloud and accessible via a configurable URL.
 
