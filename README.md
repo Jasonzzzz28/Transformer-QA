@@ -140,6 +140,8 @@ For example:
 - Experienced Developer: "How do I fine-tune a Trainer with FSDP?" "What are the expected input formats for pipeline?"
 
 - Researcher: "What are the key differences between BERT and RoBERTa?" "How does the attention mechanism work in Longformer?"
+  
+- Transformer Enthusiast: "Which Transformer is stronger: Optimus Prime or Megatron?"
 
 **Close the Loop** 
 
