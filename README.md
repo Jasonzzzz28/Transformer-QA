@@ -53,6 +53,107 @@ Discuss: Value proposition: Your will propose a machine learning system that can
 
 <!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, and which optional "difficulty" points you are attempting. -->
 
+
+#### Model training and training platforms
+
+<!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, and which optional "difficulty" points you are attempting. -->
+
+
+I. Training Pipeline Architecture
+
+II. Core Implementation
+  2.1 Model Selection & Training Strategy
+
+    base model:
+
+      python"
+        model = AutoModelForCausalLM.from_pretrained(
+            "codellama/CodeLlama-7b-hf",  # Optimized for code understanding
+            trust_remote_code=True,
+            attn_implementation="flash_attention_2"  # Memory optimization
+        )"
+
+    Retraining Protocol:
+      Trigger Conditions:
+      Parameter-Efficient Fine-tuning:
+  
+  2.2 Distributed Training Configuration
+    Hardware Matrix:
+Stage	GPU Type	Count	Memory Optimizations
+Pretraining	A100-80G	8	FSDP + Activation Checkpoint
+Fine-tuning	A10G	4	DDP + Gradient Accumulation
+Evaluation	T4	1	FP16 Quantization
+    Performance Validation:
+
+
+
+III. Training Infrastructure
+  3.1 MLFlow Experiment Tracking
+
+        with mlflow.start_run():
+    mlflow.log_params({
+        "max_seq_length": 4096,
+        "grad_accum_steps": 4
+    })
+    mlflow.pytorch.log_model(
+        pipeline, 
+        "model",
+        registered_model_name="code_llama_qa"
+    )
+    
+  3.2 Ray Cluster Configuration
+
+
+IV. Cross-Team Integration
+  4.1 Data Pipeline Interface
+    Input Specification:
+        Example structure of the data:
+          ```python
+          {
+            "id": 0,
+            "category": "source code",
+            "context": "code name and its docstring",
+            "question": "What does this function do?",
+            "answer": "answer"
+          }
+          ```
+  4.2 Model Serving Interface
+    Output Schema:
+                  
+                  {
+              "answer": "Use Spring Batch's ItemProcessor", 
+              "confidence": 0.87,
+              "source": {
+                "commit": "a1b2c3d",
+                "issue_id": 456
+              }
+            }
+V. Advanced Features
+  5.1 Hybrid Parallel Training
+  
+      python"
+        strategy = FSDP(
+        auto_wrap_policy={TransformerEncoderLayer},
+        cpu_offload=CPUOffload(offload_params=True),
+        mixed_precision=torch.float16
+        )"
+    
+  5.2 Hyperparameter Tuning
+VI. Validation Metrics
+
+difficult point: 
+As the internal codebase evolves through frequent Git commits, pull requests, and issue resolutions, the QA dataset generated from these sources exhibits:
+
+Semantic Drift: New API patterns/deprecations altering answer correctness
+Context Fragmentation: Code snippet dependencies changing across versions
+Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with ground truth
+
+
+
+
+
+
+
 #### Model serving and monitoring platforms
 
 ***Model Serving***
