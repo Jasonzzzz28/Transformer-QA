@@ -28,10 +28,10 @@ Discuss: Value proposition: Your will propose a machine learning system that can
 
 |              | How it was created | Conditions of use |
 |--------------|--------------------|-------------------|
-| Data set 1   |                    |                   |
-| Data set 2   |                    |                   |
-| Base model 1 |                    |                   |
-| etc          |                    |                   |
+| Transformers QA dataset   |     Created by ourselves (see detail in data pipeline section)               |    Training and evaluation               |
+| Stanford Question Answering Dataset (SQuAD)  |      Downloaded from Hugging Face              |       Training            |
+| Qwen2.5-14B-Instruct-1M |       Downloaded from Hugging Face             |      Base QA model             |
+| BGE-M3          |       Downloaded from Hugging Face             |      Embedding model for RAG             |
 
 
 ### Summary of infrastructure requirements
