@@ -4,6 +4,14 @@
 <!-- 
 Discuss: Value proposition: Your will propose a machine learning system that can be used in an existing business or service. (You should not propose a system in which a new business or service would be developed around the machine learning system.) Describe the value proposition for the machine learning system. What’s the (non-ML) status quo used in the business or service? What business metric are you going to be judged on? (Note that the “service” does not have to be for general users; you can propose a system for a science problem, for example.)
 -->
+### Value Proposition
+We propose a machine learning system that augments software engineering workflows by enabling accurate, context-aware question answering over large codebases and project histories. Specifically, our system builds a domain-specific retrieval-augmented generation (RAG) model that can answer technical and procedural questions about the HuggingFace Transformers project using a high-quality, internally generated QA dataset.
+
+**Status quo**: In current open-source software development workflows, developers must manually search through source code, commit history, GitHub issues, and documentation to understand past decisions, code functionality, and bug resolutions. This process is time-consuming, error-prone, and inefficient—especially for new contributors or in large, fast-evolving repositories.
+
+**Value proposition**: Our ML system enables efficient knowledge retrieval by providing natural language answers grounded in the repository’s development history. It can help developers quickly understand code behavior, rationale behind changes, and historical discussions without manual digging. This significantly reduces onboarding time, accelerates debugging, and improves overall team productivity.
+
+**Business metric**: The system will be evaluated on developer productivity metrics, such as reduced time-to-resolution for support queries, decreased onboarding time for new contributors, and accuracy/acceptance rate of answers in live usage (based on user feedback and manual review). We also monitor hallucination rates and latency to ensure system reliability in a real-world setting.
 
 ### Contributors
 
