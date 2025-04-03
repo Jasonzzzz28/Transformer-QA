@@ -28,6 +28,8 @@ We propose a machine learning system that augments software engineering workflow
 ### System diagram
 
 <!-- Overall digram of system. Doesn't need polish, does need to show all the pieces. Must include: all the hardware, all the containers/software platforms, all the models, all the data. -->
+<img width="1224" alt="image" src="https://github.com/user-attachments/assets/a6689540-e94f-4328-b3a1-f3da591cbee7" />
+
 
 ### Summary of outside materials
 
