@@ -61,10 +61,6 @@ We propose a machine learning system that augments software engineering workflow
 <!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, and which optional "difficulty" points you are attempting. -->
 
 
-#### Model training and training platforms
-
-<!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, and which optional "difficulty" points you are attempting. -->
-
 
 I. Training Pipeline Architecture
 
