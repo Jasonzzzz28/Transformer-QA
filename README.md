@@ -70,7 +70,7 @@ II. Core Implementation
 
       python"
         model = AutoModelForCausalLM.from_pretrained(
-            "codellama/CodeQwen2.5-14B-hf",  # Optimized for code understanding
+            "codeQwen/CodeQwen2.5-14B-hf",  # Optimized for code understanding
             trust_remote_code=True,
             attn_implementation="flash_attention_2"  # Memory optimization
         )"
@@ -100,7 +100,7 @@ III. Training Infrastructure
     mlflow.pytorch.log_model(
         pipeline, 
         "model",
-        registered_model_name="code_llama_qa"
+        registered_model_name="code_qwen_qa"
     )
     
   3.2 Ray Cluster Configuration
