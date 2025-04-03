@@ -48,10 +48,9 @@ We propose a machine learning system that augments software engineering workflow
 
 | Requirement     | How many/when                                     | Justification |
 |-----------------|---------------------------------------------------|---------------|
-| `m1.medium` VMs | 3 for entire project duration                     | ...           |
-| `gpu_mi100`     | 4 hour block twice a week                         |               |
+| `m1.medium` VMs | 3 for entire project duration                     |            |
+| `gpu_a100`     | 2 A100 for 4 hour block twice a week                         |               |
 | Floating IPs    | 1 for entire project duration, 1 for sporadic use |               |
-| etc             |                                                   |               |
 
 ### Detailed design plan
 
