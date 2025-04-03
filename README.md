@@ -38,9 +38,9 @@ We propose a machine learning system that augments software engineering workflow
 |              | How it was created | Conditions of use |
 |--------------|--------------------|-------------------|
 | Transformers QA dataset   |     Created by ourselves (see detail in data pipeline section)               |    Training and evaluation               |
-| Stanford Question Answering Dataset (SQuAD)  |      Downloaded from Hugging Face              |       Training            |
-| Qwen2.5-14B-Instruct-1M |       Downloaded from Hugging Face             |      Base QA model             |
-| BGE-M3          |       Downloaded from Hugging Face             |      Embedding model for RAG             |
+| Stanford Question Answering Dataset (SQuAD)  |      Downloaded from [Huggingface](https://huggingface.co/datasets/rajpurkar/squad), details see [this paper](https://arxiv.org/abs/1606.05250)             |       Training            |
+| Qwen2.5-14B-Instruct-1M |       Downloaded from [Hugging Face](https://huggingface.co/Qwen/Qwen2.5-14B), details see [this paper](https://arxiv.org/abs/2412.15115)             |      Base QA model             |
+| BGE-M3          |       Downloaded from [Hugging Face](https://huggingface.co/BAAI/bge-m3), details see [this paper](https://arxiv.org/pdf/2402.03216)             |      Embedding model for RAG             |
 
 
 ### Summary of infrastructure requirements
