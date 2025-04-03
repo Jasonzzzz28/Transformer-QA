@@ -447,7 +447,7 @@ The dashboard will serve as a central control panel for understanding and managi
     * **Validation:** Use an LLM validation model or other methods to check answer correctness, especially for QA requiring reasoning/summarization.
     * **Storage & Indexing:** Add validated QA pairs (with metadata) to the main dataset in persistent storage and update the index used by RAG.
 * **Model Training/Fine-tuning:**
-    * Fine-tune the Llama 3.3 70B model using the updated dataset (or, depending on the RAG architecture, primarily update the index and potentially fine-tune the retriever/generator).
+    * Fine-tune the Qwen2.5-14B-Instruct-1M model using the updated dataset (or, depending on the RAG architecture, primarily update the index and potentially fine-tune the retriever/generator).
     * Use your defined training platform and process.
 * **Model Evaluation (Automated):**
     * **Offline Evaluation:** After training completes, automatically run evaluations on the test set (including standard use cases, slice analysis, known failure modes, unit tests), calculating metrics like F1, EM, Precision, Recall.
