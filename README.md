@@ -148,7 +148,9 @@ difficult point:
 As the internal codebase evolves through frequent Git commits, pull requests, and issue resolutions, the QA dataset generated from these sources exhibits:
 
 Semantic Drift: New API patterns/deprecations altering answer correctness
+
 Context Fragmentation: Code snippet dependencies changing across versions
+
 Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with ground truth
 
 
