@@ -144,7 +144,8 @@ V. Advanced Features
   5.2 Hyperparameter Tuning
 VI. Validation Metrics
 
-difficult point: 
+
+Difficult point: 
 As the internal codebase evolves through frequent Git commits, pull requests, and issue resolutions, the QA dataset generated from these sources exhibits:
 
 Semantic Drift: New API patterns/deprecations altering answer correctness
