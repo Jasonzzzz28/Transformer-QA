@@ -70,7 +70,7 @@ II. Core Implementation
 
       python"
         model = AutoModelForCausalLM.from_pretrained(
-            "codellama/CodeLlama-7b-hf",  # Optimized for code understanding
+            "codellama/CodeQwen2.5-14B-hf",  # Optimized for code understanding
             trust_remote_code=True,
             attn_implementation="flash_attention_2"  # Memory optimization
         )"
