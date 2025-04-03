@@ -19,10 +19,10 @@ We propose a machine learning system that augments software engineering workflow
 
 | Name                            | Responsible for | Link to their commits in this repo |
 |---------------------------------|-----------------|------------------------------------|
-| Zeqiao Huang                 | model training |                                    |
-| Siyuan Zhang                 |  model serving and monitoring |    https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits?author=Jasonzzzz28                                |
-| Junzhi Chen                   |       data pipeline          |           https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits?author=szjiozi                         |
-| Chuangyu Xu                  |      continuous X pipeline           |       https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits/main/?author=xcy103                             |
+| Zeqiao Huang                 | model training |  https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits?author=Hzq1941048295                                  |
+| Siyuan Zhang                 |  model serving and monitoring |    https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits?author=Jasonzzzz28                     |
+| Junzhi Chen                   |       data pipeline          |           https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits?author=szjiozi                  |
+| Chuangyu Xu                  |      continuous X pipeline           |       https://github.com/Jasonzzzz28/ECE-GY-9183-Project/commits/main/?author=xcy103                  |
 
 
 
