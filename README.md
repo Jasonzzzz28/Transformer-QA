@@ -165,7 +165,7 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 **Serving from an API Endpoint** 
 
-- Backend: We will deploy our fine-tuned LLaMA-3.3-70B model using NVIDIA Triton Inference Server, exposing it through a REST API. The API will accept JSON-formatted requests containing user questions and return predictions in JSON format.
+- Backend: We will deploy our fine-tuned Qwen2.5-14B-Instruct model using NVIDIA Triton Inference Server, exposing it through a REST API. The API will accept JSON-formatted requests containing user questions and return predictions in JSON format.
 
 - Frontend: A Flask-based web interface will handle user interactions and send requests to the NVIDIA Triton backend for real-time predictions.
 
@@ -173,11 +173,11 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 **Requirements** 
 
-- Model Size: The expected size of the trained and optimized Llama 3.3 70b model is approximately 140GB (70 billion parameters * 2 bytes per parameter in FP16 precision). This model will be stored in persistent storage on Chameleon (as defined in Unit 8).
+- Model Size: The expected size of the trained and optimized Qwen2.5-14B-Instruct model is approximately 28GB (14 billion parameters * 2 bytes per parameter in FP16 precision). This model will be stored in persistent storage on Chameleon (as defined in Unit 8).
 
 - Throughput (Batch Inference): We anticipate a relatively low batch inference requirement. We aim for 6 - 12 QPS.
 
-- Latency (Online Inference): For real-time question answering, we aim to achieve a latency of 500ms - 3s per request. While not strictly real-time, this latency is crucial for a responsive and interactive user experience.
+- Latency (Online Inference): For real-time question answering, we aim to achieve a latency of 500ms - 1.5s per request. While not strictly real-time, this latency is crucial for a responsive and interactive user experience.
 
 - Concurrency (Cloud Deployment): Our cloud deployment on Chameleon must support a concurrency of 8 simultaneous requests to handle concurrent users asking questions. This represents a minimal concurrency requirement for our prototype.
 
@@ -187,13 +187,13 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 - Graph Optimization: Utilize ONNX Runtime's graph optimizations.
 
-- Quantization: Implement INT8 quantization, allowing a maximum accuracy loss of 0.01 (on validation set).
+- Quantization: Implement INT8/FP16 quantization, allowing a maximum accuracy loss of 0.01 (on validation set).
 
 - Execution Provider: Benchmark and select the faster performer between CUDA and TensorRT execution providers within ONNX Runtime.
 
 **System Optimizations**
 
-- Model Server: Utilize Triton Inference Server with the ONNX backend for efficient execution of the optimized Llama 3.3 70b model.
+- Model Server: Utilize Triton Inference Server with the ONNX backend for efficient execution of the optimized Qwen2.5-14B-Instruct model.
 
 - Scaling: Deploy the model across 2 GPUs, with 2 Triton instances running on each GPU.
 
@@ -227,7 +227,7 @@ Using load testing frameworks, like Locust, simulate concurrent users and measur
 
 - QPS (Target: 6-12)
 
-- Latency (Target: 500ms - 3s)
+- Latency (Target: 500ms - 1.5s)
 
 - Error Rate
 
