@@ -49,7 +49,7 @@ We propose a machine learning system that augments software engineering workflow
 
 | Requirement     | How many/when                                     | Justification |
 |-----------------|---------------------------------------------------|---------------|
-| 2 VM | 2 for entire project duration                     |     One for model training, the other for model serving       |
+| 2 VMs | 2 for entire project duration                     |     One for model training, the other for model serving       |
 | `gpu_a100`     | 2 A100 80GB for 4 hour block twice a week    |    For our 14b model, we need approximatly 120GB RAM for training with fp16.    |
 | Floating IPs    | 1 for entire project duration, 1 for sporadic use |    One for development, the other for testing           |
 | Object Store    | 1 for entire project duration |    For storing the QA data pair and the user feedback data          |
