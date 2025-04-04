@@ -67,6 +67,13 @@ We propose a machine learning system that augments software engineering workflow
 
 I. Training Pipeline Architecture
 
+    graph TD
+    A[Raw Codebase Data] --> B(Data Pipeline)
+    B --> C{Versioned QA Dataset}
+    C --> D[Model Training Cluster]
+    D --> E[Fine-tuned LLM]
+    E --> F[Evaluation on Curated QA Set]
+    F -->|Accuracy < 85%| B
 II. Core Implementation
   2.1 Model Selection & Training Strategy
 
