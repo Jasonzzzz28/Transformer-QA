@@ -5,23 +5,37 @@ import numpy as np
 import json
 import tritonclient.http as httpclient
 from tritonclient.utils import triton_to_np_dtype
+import torch
+from transformers import AutoTokenizer
 
 app = Flask(__name__)
 
-# Triton server configuration
-TRITON_SERVER_URL = os.environ['TRITON_SERVER_URL']
-MODEL_NAME = os.environ['FOOD11_MODEL_NAME']
+# local model configuration
+model = torch.load("opt-125m.pth", map_location=torch.device('cpu'))
+tokenizer = AutoTokenizer.from_pretrained("facebook/opt-125m")
 
-def get_model_response(question_text):
-    """
-    Send a text query to the Triton Inference Server running Llama-3.2-1B-Instruct
-    
-    Args:
-        question_text (str): The input text question
-    
-    Returns:
-        str: The model's response
-    """
+# Triton server configuration
+# TRITON_SERVER_URL = os.environ['TRITON_SERVER_URL']
+# MODEL_NAME = os.environ['FOOD11_MODEL_NAME']
+
+def get_model_response_local(question_text):
+    # Tokenize input
+    inputs = tokenizer(question_text, return_tensors="pt")
+
+    # Generate response
+    with torch.no_grad():
+        outputs = model.generate(
+            input_ids=inputs["input_ids"],
+            max_new_tokens=100,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.95
+        )
+
+    # Decode and return
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+def get_model_response_triton(question_text):
     try:
         # Create a Triton client
         triton_client = httpclient.InferenceServerClient(url=TRITON_SERVER_URL)
@@ -95,7 +109,7 @@ def ask():
     
     # Get response from Triton server
     start_time = time.time()
-    response = get_model_response(question)
+    response = get_model_response_local(question)
     end_time = time.time()
     
     print(f"Response time: {end_time - start_time:.2f} seconds")
