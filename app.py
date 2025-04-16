@@ -3,8 +3,8 @@ import os
 import time
 import numpy as np
 import json
-import tritonclient.http as httpclient
-from tritonclient.utils import triton_to_np_dtype
+# import tritonclient.http as httpclient
+# from tritonclient.utils import triton_to_np_dtype
 import torch
 from transformers import AutoTokenizer
 
