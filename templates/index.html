@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hugging Face Transformers QA Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .chat-container {
+            height: calc(100vh - 160px);
+        }
+        .message {
+            max-width: 80%;
+        }
+        .typing-indicator::after {
+            content: "...";
+            animation: typing 1.5s infinite;
+        }
+        @keyframes typing {
+            0% { content: "."; }
+            33% { content: ".."; }
+            66% { content: "..."; }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-8">
+            <div class="flex items-center">
+                <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" alt="Hugging Face Logo" class="h-12 mr-4">
+                <h1 class="text-3xl font-bold text-gray-800">Transformers QA Chatbot</h1>
+            </div>
+            <div class="flex space-x-4">
+                <button id="clear-chat" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 transition">
+                    <i class="fas fa-trash-alt mr-2"></i>Clear Chat
+                </button>
+                <button id="settings-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition">
+                    <i class="fas fa-cog mr-2"></i>Settings
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Chat Area -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <!-- Model Info Bar -->
+            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white flex justify-between items-center">
+                <div>
+                    <span class="font-semibold">Model:</span>
+                    <span id="current-model" class="ml-2">Qwen2.5-14B-Instruct-1M</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="h-3 w-3 rounded-full bg-green-400 mr-2"></span>
+                    <span>API Connected</span>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-container p-4 overflow-y-auto">
+                <div id="chat-messages" class="space-y-4">
+                    <!-- Welcome message -->
+                    <div class="message bg-blue-50 p-4 rounded-lg rounded-tl-none fade-in">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                <i class="fas fa-robot text-blue-500"></i>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-blue-700">Transformers Bot</p>
+                                <p class="text-gray-700 mt-1">Hello! I'm a QA chatbot powered by Hugging Face Transformers. Ask me anything about the Transformers library!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="border-t border-gray-200 p-4 bg-gray-50">
+                <form id="chat-form" class="flex space-x-2">
+                    <input 
+                        type="text" 
+                        id="user-input" 
+                        placeholder="Ask a question about Hugging Face Transformers..." 
+                        class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autocomplete="off"
+                    >
+                    <button 
+                        type="submit" 
+                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center"
+                    >
+                        <i class="fas fa-paper-plane mr-2"></i> Send
+                    </button>
+                </form>
+                <div class="mt-2 text-sm text-gray-500 flex justify-between">
+                    <span>Press Enter to send</span>
+                    <span id="model-status" class="text-blue-600">Model ready</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="text-blue-500 mb-3">
+                    <i class="fas fa-lightbulb text-2xl"></i>
+                </div>
+                <h3 class="font-semibold text-lg mb-2">Sample Questions</h3>
+                <ul class="text-gray-600 space-y-1">
+                    <li class="cursor-pointer hover:text-blue-500" onclick="insertSampleQuestion(this)">What is a Transformer model?</li>
+                    <li class="cursor-pointer hover:text-blue-500" onclick="insertSampleQuestion(this)">How do I fine-tune a BERT model?</li>
+                    <li class="cursor-pointer hover:text-blue-500" onclick="insertSampleQuestion(this)">What's the difference between GPT and BERT?</li>
+                </ul>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="text-purple-500 mb-3">
+                    <i class="fas fa-cogs text-2xl"></i>
+                </div>
+                <h3 class="font-semibold text-lg mb-2">Capabilities</h3>
+                <ul class="text-gray-600 space-y-1">
+                    <li><i class="fas fa-check-circle text-green-500 mr-2"></i>Answer technical questions</li>
+                    <li><i class="fas fa-check-circle text-green-500 mr-2"></i>Explain model architectures</li>
+                    <li><i class="fas fa-check-circle text-green-500 mr-2"></i>Provide code examples</li>
+                </ul>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="text-green-500 mb-3">
+                    <i class="fas fa-info-circle text-2xl"></i>
+                </div>
+                <h3 class="font-semibold text-lg mb-2">About</h3>
+                <p class="text-gray-600">This chatbot uses Hugging Face's Transformers library to answer questions. It's powered by state-of-the-art large language models for accurate responses.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="flex justify-between items-center border-b p-4">
+                <h3 class="text-xl font-semibold">Chatbot Settings</h3>
+                <button id="close-settings" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Model Selection</label>
+                    <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>Qwen2.5-14B-Instruct</option>
+                        <option>Llama-3.1-8B-Instruct</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Response Length</label>
+                    <input type="range" min="50" max="500" value="150" class="w-full">
+                </div>
+                <div class="flex items-center mb-4">
+                    <input type="checkbox" id="show-confidence" class="mr-2">
+                    <label for="show-confidence" class="text-gray-700">Show confidence scores</label>
+                </div>
+            </div>
+            <div class="flex justify-end border-t p-4">
+                <button id="save-settings" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="static/script.js"></script>
+</body>
+</html>
