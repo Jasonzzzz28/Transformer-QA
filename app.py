@@ -1,17 +1,85 @@
 from flask import Flask, request, jsonify, render_template
-# from flask_cors import CORS
+import os
 import time
-import random
+import numpy as np
+import json
+import tritonclient.http as httpclient
+from tritonclient.utils import triton_to_np_dtype
 
 app = Flask(__name__)
-# CORS(app)  # Enable CORS for all routes
 
-# Mock responses
-MOCK_RESPONSES = [
-    "Transformer models are a type of neural network architecture that relies on self-attention mechanisms to process sequential data. The Hugging Face Transformers library provides thousands of pretrained models for NLP tasks like text classification, question answering, and text generation.",
-    "To fine-tune a BERT model, you'll need to: 1) Prepare your dataset, 2) Load the pretrained BERT model using `AutoModelForSequenceClassification`, 3) Set up a Trainer with your training arguments, and 4) Call trainer.train(). The Hugging Face documentation provides detailed examples.",
-    "GPT (Generative Pre-trained Transformer) is a decoder-only model designed for text generation, while BERT (Bidirectional Encoder Representations from Transformers) is an encoder-only model designed for understanding tasks like question answering. GPT processes text left-to-right, while BERT considers full context bidirectionally."
-]
+# Triton server configuration
+TRITON_SERVER_URL = os.environ['TRITON_SERVER_URL']
+MODEL_NAME = os.environ['FOOD11_MODEL_NAME']
+
+def get_model_response(question_text):
+    """
+    Send a text query to the Triton Inference Server running Llama-3.2-1B-Instruct
+    
+    Args:
+        question_text (str): The input text question
+    
+    Returns:
+        str: The model's response
+    """
+    try:
+        # Create a Triton client
+        triton_client = httpclient.InferenceServerClient(url=TRITON_SERVER_URL)
+        
+        # Check if the server is ready
+        if not triton_client.is_server_ready():
+            return "Triton server is not ready."
+        
+        # Check if the model is ready
+        if not triton_client.is_model_ready(MODEL_NAME):
+            return f"Model {MODEL_NAME} is not ready."
+        
+        prompt = f"<|system|>\nYou are a helpful AI assistant.\n<|user|>\n{question_text}\n<|assistant|>"
+        
+        # Create the input data as a numpy array of strings
+        input_data = np.array([prompt], dtype=np.object_)
+        
+        # Input parameters for the model
+        inputs = []
+        inputs.append(httpclient.InferInput("text_input", input_data.shape, "BYTES"))
+        inputs[0].set_data_from_numpy(input_data)
+        
+        # Parameters for text generation
+        parameters = {
+            "temperature": 0.7,
+            "max_tokens": 256,
+            "top_p": 0.95,
+            "top_k": 40
+        }
+        
+        # Convert parameters to JSON string
+        parameters_json = json.dumps(parameters)
+        parameters_data = np.array([parameters_json], dtype=np.object_)
+        
+        # Add parameters as another input
+        inputs.append(httpclient.InferInput("parameters", parameters_data.shape, "BYTES"))
+        inputs[1].set_data_from_numpy(parameters_data)
+        
+        # Define the expected output
+        outputs = []
+        outputs.append(httpclient.InferRequestedOutput("text_output"))
+        
+        # Execute the inference request
+        results = triton_client.infer(
+            model_name=MODEL_NAME,
+            inputs=inputs,
+            outputs=outputs
+        )
+        
+        # Process the results
+        output_data = results.as_numpy("text_output")
+        response_text = output_data[0].decode('utf-8')
+        
+        return response_text
+    
+    except Exception as e:
+        print(f"Error when calling Triton server: {e}")
+        return f"Error processing request: {str(e)}"
 
 @app.route('/', methods=['GET'])
 def index():
@@ -25,12 +93,12 @@ def ask():
     # For debugging
     print(f"Received question: {question}")
     
-    # Simulate processing delay
-    time.sleep(1.5)
+    # Get response from Triton server
+    start_time = time.time()
+    response = get_model_response(question)
+    end_time = time.time()
     
-    # For now, return a mock response
-    response = random.choice(MOCK_RESPONSES)
-    # response = get_model_response(question)
+    print(f"Response time: {end_time - start_time:.2f} seconds")
     
     return jsonify({'response': response})
 
