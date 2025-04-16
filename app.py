@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 app = Flask(__name__)
 
 # local model configuration
-model = torch.load("opt-125m.pth", map_location=torch.device('cpu'))
+model = torch.load("./model/opt-125m.pth", map_location=torch.device('cpu'))
 tokenizer = AutoTokenizer.from_pretrained("facebook/opt-125m")
 
 # Triton server configuration
