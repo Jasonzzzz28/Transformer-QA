@@ -1,0 +1,19 @@
+volumes:
+  transformer-qa:
+    external: true  # Uses externally created volume
+
+services:
+  init-data:
+    image: python:3.11
+    volumes:
+      - transformer-qa:/data
+    working_dir: /data
+    command:
+      - bash
+      - -c
+      - |
+        set -e  # Stop on error
+        echo "Creating dataset directory..."
+        mkdir -p /data/t-qa && cd /data/t-qa
+
+    restart: "no"
