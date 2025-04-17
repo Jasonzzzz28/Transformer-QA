@@ -136,7 +136,7 @@ chatForm.addEventListener('submit', async (e) => {
 
 clearChatBtn.addEventListener('click', () => {
     chatMessages.innerHTML = '';
-    addMessage("Hello! I'm a QA chatbot powered by Hugging Face Transformers. Ask me anything about the Transformers library, NLP models, or AI in general!");
+    addMessage("Hello! I'm a QA chatbot specialized in Hugging Face Transformers. Ask me anything about the Transformers library!");
 });
 
 settingsBtn.addEventListener('click', () => {

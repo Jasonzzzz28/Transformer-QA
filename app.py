@@ -6,17 +6,33 @@ import json
 # import tritonclient.http as httpclient
 # from tritonclient.utils import triton_to_np_dtype
 import torch
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 app = Flask(__name__)
 
 # local model configuration
-model = torch.load("./model/opt-125m.pth", map_location=torch.device('cpu'))
+
+model = AutoModelForCausalLM.from_pretrained("facebook/opt-125m")
+state_dict = torch.load("./model/opt-125m.pth", map_location=torch.device('cpu'))
+# state_dict = torch.load("opt-125m.pth", map_location=torch.device('cpu'))
+model.load_state_dict(state_dict)
+model.eval()
 tokenizer = AutoTokenizer.from_pretrained("facebook/opt-125m")
 
 # Triton server configuration
 # TRITON_SERVER_URL = os.environ['TRITON_SERVER_URL']
 # MODEL_NAME = os.environ['FOOD11_MODEL_NAME']
+
+# def get_model_response_local_automodel(question_text):
+#     inputs = tokenizer(question_text, return_tensors="pt")
+#     with torch.no_grad():
+#         outputs = model(**inputs)
+    
+#     # Take the embedding for [CLS] or first token
+#     embedding = outputs.last_hidden_state[0][0]
+    
+#     # Convert to a simple list for display or further processing
+#     return embedding.tolist()
 
 def get_model_response_local(question_text):
     # Tokenize input
@@ -32,8 +48,13 @@ def get_model_response_local(question_text):
             top_p=0.95
         )
 
-    # Decode and return
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    full_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # Remove the prompt from the generated output
+    if full_output.startswith(question_text):
+        return full_output[len(question_text):].strip()
+    else:
+        return full_output.strip()
 
 def get_model_response_triton(question_text):
     try:
