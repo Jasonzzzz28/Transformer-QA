@@ -6,18 +6,20 @@ import json
 # import tritonclient.http as httpclient
 # from tritonclient.utils import triton_to_np_dtype
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForQuestionAnswering
+import requests
 
 app = Flask(__name__)
 
 # local model configuration
-
 model = AutoModelForCausalLM.from_pretrained("facebook/opt-125m")
-state_dict = torch.load("./model/opt-125m.pth", map_location=torch.device('cpu'))
 # state_dict = torch.load("opt-125m.pth", map_location=torch.device('cpu'))
-model.load_state_dict(state_dict)
+# model.load_state_dict(state_dict)
 model.eval()
 tokenizer = AutoTokenizer.from_pretrained("facebook/opt-125m")
+
+# FastAPI server configuration
+FASTAPI_SERVER_URL = os.environ['FASTAPI_SERVER_URL']
 
 # Triton server configuration
 # TRITON_SERVER_URL = os.environ['TRITON_SERVER_URL']
@@ -55,6 +57,11 @@ def get_model_response_local(question_text):
         return full_output[len(question_text):].strip()
     else:
         return full_output.strip()
+    
+def get_model_response_fastapi(question_text):
+    response = requests.post(f"{FASTAPI_SERVER_URL}/predict", json={"question": question_text})
+    response.raise_for_status()
+    return response.json().get("answer", "")
 
 def get_model_response_triton(question_text):
     try:
