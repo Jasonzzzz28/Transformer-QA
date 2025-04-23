@@ -14,6 +14,8 @@ services:
               capabilities: [gpu]
     ports:
       - "8000:8000"  # for HTTP requests
+    volumes:
+      - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/app/Llama-3.1-8B-Instruct  # TODO: Change this to the final model
     # environment:
     #   - MODEL_PATH=placeholder
 
@@ -23,7 +25,8 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - /home/cc/Transformer-QA:/home/jovyan/work # mount workspace, update to workspace path when everything is ready
+      - /home/cc:/home/jovyan/work # mount workspace, update to workspace path when everything is ready
+      - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/home/jovyan/Llama-3.1-8B-Instruct
     command: >
       bash -c "python3 -m pip install numpy && start-notebook.sh"
 
@@ -36,7 +39,7 @@ services:
       - "80:5000"
     environment:
       - FASTAPI_SERVER_URL=http://fastapi_server:8000
-    volumes:
-      - ./Transformer-QA/opt-125m.pth:/app/opt-125m.pth  # local to container path
+    # volumes:
+    #   - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/app/Llama-3.1-8B-Instruct
 
 # TODO: Need testing
