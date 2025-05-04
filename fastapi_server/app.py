@@ -101,11 +101,12 @@ def get_model_response(question_text):
     # Tokenize input
     inputs = tokenizer(question_text, return_tensors="pt")
 
+    # TODO: Add prompt to make this extractive QA
     # Generate response
     with torch.no_grad():
         outputs = model.generate(
             input_ids=inputs["input_ids"],
-            max_new_tokens=100,
+            max_new_tokens=50,
             do_sample=True,
             temperature=0.7,
             top_p=0.95
