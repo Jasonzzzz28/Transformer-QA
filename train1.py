@@ -82,7 +82,7 @@ tokenizer = T5Tokenizer.from_pretrained(model_name)
 model = T5ForConditionalGeneration.from_pretrained(model_name)
 
 # 加载并预处理数据
-dataset = preprocess_data("Downloads/train/qa_from_commits_formatted.json")
+dataset = preprocess_data("model_training/qa_from_commits_formatted.json")
 train_dataloader = prepare_dataloader(dataset, tokenizer)
 
 # 启动MLflow运行
