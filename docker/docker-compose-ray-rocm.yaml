@@ -113,7 +113,7 @@ services:
       - AWS_ENDPOINT_URL=http://minio:9000
     shm_size: '12g'
     volumes:
-      - transformer-qa:/mnt/data
+      - transformer-qa:/path/inside/container
     depends_on:
       - ray-head
 
@@ -132,7 +132,7 @@ services:
       - AWS_ENDPOINT_URL=http://minio:9000
     shm_size: '12g'
     volumes:
-      - transformer-qa:/mnt/data
+      - transformer-qa:/path/inside/container
     depends_on:
       - ray-head
 
@@ -140,5 +140,5 @@ volumes:
   grafana_storage:
   ray_tmp:
   minio_data:
-  food11:
+  transformer-qa:
     external: true  # Uses externally created volume
