@@ -61,7 +61,7 @@ def setup_device():
 
 if __name__ == "__main__":
     # —— MLflow 跟踪设置 —— #
-    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.109.139:8000/"
+    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.6:8000/"
     mlflow.set_experiment("Commit QA Training - Optimized")
 
     # —— 先结束任何遗留的 run —— #
