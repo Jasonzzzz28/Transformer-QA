@@ -113,7 +113,7 @@ services:
       - AWS_ENDPOINT_URL=http://minio:9000
     shm_size: '12g'
     volumes:
-      - mldevop:/mnt/data
+      - transformer-qa:/mnt/data
     depends_on:
       - ray-head
 
@@ -132,7 +132,7 @@ services:
       - AWS_ENDPOINT_URL=http://minio:9000
     shm_size: '12g'
     volumes:
-      - mldevop:/mnt/data
+      - transformer-qa:/mnt/data
     depends_on:
       - ray-head
 
