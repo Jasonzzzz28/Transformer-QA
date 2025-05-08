@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
         # —— 训练参数 —— #
         training_args = Seq2SeqTrainingArguments(
-            output_dir="./commit_qa_model",
+            output_dir="/mnt/object/trained_models",
             per_device_train_batch_size=16,
             gradient_accumulation_steps=2,
             num_train_epochs=3,
