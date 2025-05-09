@@ -115,12 +115,14 @@ if __name__ == "__main__":
             use_auth_token=True,
             padding_side="right"
         )
+        dtype = torch.float16 if device == "cuda" else torch.float32
         model = LlamaForCausalLM.from_pretrained(
             model_name,
-            load_in_8bit=True,
+            torch_dtype=dtype,
             device_map="auto",
             use_auth_token=True,
-        )
+        ）
+        
 
         # —— 设备搬模型 —— #
         device = setup_device()
@@ -150,7 +152,7 @@ if __name__ == "__main__":
             logging_steps=100,
             save_steps=500,
             report_to="mlflow",
-            optim="paged_adamw_8bit",
+            optim="adamw_torch",
             dataloader_num_workers=4,
             dataloader_pin_memory=True,
             remove_unused_columns=False,
