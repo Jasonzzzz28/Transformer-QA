@@ -2,3 +2,5 @@ flask
 numpy
 torch
 transformers
+requests
+boto3

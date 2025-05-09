@@ -133,8 +133,8 @@ def ask():
     
     # Get response from model
     start_time = time.time()
-    # response_text = get_model_response_fastapi(question)
-    response_text = get_model_response_local(question)
+    response_text = get_model_response_fastapi(question)
+    # response_text = get_model_response_local(question)
     end_time = time.time()
     
     print(f"Response time: {end_time - start_time:.2f} seconds")
