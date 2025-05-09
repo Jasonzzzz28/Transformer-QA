@@ -11,6 +11,21 @@ from transformers import (
     TrainingArguments,
 )
 
+# —— DeepSpeed ZeRO Stage 1 配置 —— #
+ds_config = {
+    "zero_optimization": {
+        "stage": 1,
+        "offload_optimizer": {"device": "cpu"},
+        "offload_param":     {"device": "cpu"},
+        "contiguous_gradients": True,
+    },
+    "bf16": True,
+    "train_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+}
+with open("ds_config.json", "w") as f:
+    json.dump(ds_config, f)
+
 # —— 1. 加载原始 JSON 数据 —— #
 def load_dataset(file_path: str) -> HFDataset:
     """
@@ -27,7 +42,7 @@ def load_dataset(file_path: str) -> HFDataset:
 
 # —— 2. 定义 Llama 专用的 Preprocessor —— #
 class LlamaQAPreprocessor:
-    def __init__(self, tokenizer, max_length=256):  # 缩短序列长度以节省显存
+    def __init__(self, tokenizer, max_length=256):
         self.tokenizer = tokenizer
         self.max_length = max_length
         if tokenizer.pad_token_id is None:
@@ -37,16 +52,16 @@ class LlamaQAPreprocessor:
         input_ids_batch, attention_mask_batch, labels_batch = [], [], []
         for q, c, a in zip(examples["question"], examples["context"], examples["answer"]):
             prompt = f"### 问题：{q}\n### 上下文：{c}\n### 回答："
-            prompt_ids = self.tokenizer(prompt, add_special_tokens=False)["input_ids"]
+            prompt_ids   = self.tokenizer(prompt, add_special_tokens=False)["input_ids"]
             response_ids = self.tokenizer(a + self.tokenizer.eos_token, add_special_tokens=False)["input_ids"]
-            ids = (prompt_ids + response_ids)[: self.max_length]
+            ids    = (prompt_ids + response_ids)[: self.max_length]
             labels = ([-100] * len(prompt_ids) + response_ids)[: self.max_length]
             attention_mask = [1] * len(ids)
             pad_len = self.max_length - len(ids)
             if pad_len > 0:
-                ids += [self.tokenizer.pad_token_id] * pad_len
+                ids            += [self.tokenizer.pad_token_id] * pad_len
                 attention_mask += [0] * pad_len
-                labels += [-100] * pad_len
+                labels         += [-100] * pad_len
             input_ids_batch.append(ids)
             attention_mask_batch.append(attention_mask)
             labels_batch.append(labels)
@@ -101,8 +116,13 @@ if __name__ == "__main__":
         # 数据加载与预处理
         raw_ds = load_dataset("model_training/qa_from_commits_formatted.json")
         processor = LlamaQAPreprocessor(tokenizer, max_length=256)
-        processed_ds = raw_ds.map(processor, batched=True, batch_size=8,
-                                  remove_columns=["question", "context", "answer"], num_proc=4)
+        processed_ds = raw_ds.map(
+            processor,
+            batched=True,
+            batch_size=8,
+            remove_columns=["question", "context", "answer"],
+            num_proc=4,
+        )
         processed_ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
 
         # 训练参数
@@ -113,8 +133,9 @@ if __name__ == "__main__":
             num_train_epochs=3,
             learning_rate=2e-5,
             fp16=False,
-            bf16=True,  # 如果硬件支持，可使用 bfloat16
+            bf16=True,
             gradient_checkpointing=True,
+            deepspeed="ds_config.json",
             logging_steps=100,
             save_steps=500,
             report_to="mlflow",
@@ -136,7 +157,12 @@ if __name__ == "__main__":
         })
 
         # 训练
-        trainer = Trainer(model=model, args=training_args, train_dataset=processed_ds, tokenizer=tokenizer)
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=processed_ds,
+            tokenizer=tokenizer,
+        )
         print("开始训练…")
         trainer.train()
 
