@@ -120,7 +120,7 @@ if __name__ == "__main__":
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
-            device_map="auto",
+            device_map="None",
             use_auth_token=True,
         )
         
