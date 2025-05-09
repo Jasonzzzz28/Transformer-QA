@@ -5,13 +5,13 @@ services:
       context: /home/cc/Transformer-QA/fastapi_server
       dockerfile: Dockerfile
     container_name: fastapi_server
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     ports:
       - "8000:8000"  # for HTTP requests
     volumes:
@@ -38,7 +38,7 @@ services:
       # context: https://github.com/Jasonzzzz28/Transformer-QA.git#serving
     container_name: flask
     ports:
-      - "80:5000"
+      - "5000:5000"
     environment:
       - FASTAPI_SERVER_URL=http://fastapi_server:8000
       - MINIO_URL=http://minio:9000
@@ -51,6 +51,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    user: root
     ports:
       - "9090:9090"
     volumes:
@@ -60,6 +61,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    user: root
     ports:
       - "3000:3000"
     depends_on:

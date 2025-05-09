@@ -89,7 +89,7 @@ def get_model_response_local(question_text):
         return full_output.strip()
     
 def get_model_response_fastapi(question_text):
-    response = requests.post(f"{FASTAPI_SERVER_URL}/predict", json={"question": question_text})
+    response = requests.post(f"{FASTAPI_SERVER_URL}/answer", json={"question": question_text})
     response.raise_for_status()
     return response.json().get("answer", "")
 
