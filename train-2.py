@@ -1,274 +1,182 @@
-import numpy as np
 import os
+import json
 import subprocess
-import time
-from PIL import Image
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader
-from torchvision import datasets, models
-import torchvision.transforms as transforms
-
-### Imports for MLFlow
 import mlflow
-import mlflow.pytorch
-
-### Configure MLFlow
-
-# Note: many configurations can be set as environment variables, instead of hard-coding
-# We will pass MLFLOW_TRACKING_URI as an environment variable, but if we hadn't, we could do:
-# mlflow.set_tracking_uri("http://A.B.C.D:8000/") 
-mlflow.set_experiment("food11-classifier")
-
-### Configure the training job 
-# All hyperparameters will be set here, in one convenient place
-config = {
-    "initial_epochs": 5,
-    "total_epochs": 20,
-    "patience": 5,
-    "batch_size": 32,
-    "lr": 1e-4,
-    "fine_tune_lr": 1e-5,
-    "model_architecture": "MobileNetV2",
-    "dropout_probability": 0.5,
-    "random_horizontal_flip": 0.5,
-    "random_rotation": 15,
-    "color_jitter_brightness": 0.2,
-    "color_jitter_contrast": 0.2,
-    "color_jitter_saturation": 0.2,
-    "color_jitter_hue": 0.1
-}
-
-### Prepare data loaders
-
-# Get data directory from environment variable, if set
-# otherwise, assume data is in a directory named "Food-11"
-food_11_data_dir = os.getenv("FOOD11_DATA_DIR", "Food-11")
-
-# Define transforms for training data augmentation
-train_transform = transforms.Compose([
-    transforms.Resize(224),
-    transforms.CenterCrop(224),
-    transforms.RandomHorizontalFlip(p=config["random_horizontal_flip"]),
-    transforms.RandomRotation(config["random_rotation"]),
-    transforms.ColorJitter(
-        brightness=config["color_jitter_brightness"],
-        contrast=config["color_jitter_contrast"],
-        saturation=config["color_jitter_saturation"],
-        hue=config["color_jitter_hue"]
-    ),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
-
-val_test_transform = transforms.Compose([
-    transforms.Resize(224),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
-
-# Create data loaders
-train_dataset = datasets.ImageFolder(root=os.path.join(food_11_data_dir, 'training'), transform=train_transform)
-val_dataset = datasets.ImageFolder(root=os.path.join(food_11_data_dir, 'validation'), transform=val_test_transform)
-test_dataset = datasets.ImageFolder(root=os.path.join(food_11_data_dir, 'evaluation'), transform=val_test_transform)
-
-train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False)
-test_loader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False)
-
-### Define training and validation/test functions
-# This is Pytorch boilerplate
-
-# training function - one epoch
-def train(model, dataloader, criterion, optimizer, device):
-    model.train()
-    running_loss = 0.0
-    correct = 0
-    total = 0
-
-    for inputs, labels in dataloader:
-        inputs, labels = inputs.to(device), labels.to(device)
-
-        optimizer.zero_grad()
-
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item()
-        _, predicted = outputs.max(1)
-        total += labels.size(0)
-        correct += predicted.eq(labels).sum().item()
-
-    epoch_loss = running_loss / len(dataloader)
-    epoch_acc = correct / total
-
-    return epoch_loss, epoch_acc
-
-# validate function - one epoch
-def validate(model, dataloader, criterion, device):
-    model.eval()
-    running_loss = 0.0
-    correct = 0
-    total = 0
-
-    with torch.no_grad():
-        for inputs, labels in dataloader:
-            inputs, labels = inputs.to(device), labels.to(device)
-
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-
-            running_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += labels.size(0)
-            correct += predicted.eq(labels).sum().item()
-
-    epoch_loss = running_loss / len(dataloader)
-    epoch_acc = correct / total
-
-    return epoch_loss, epoch_acc
-
-### Define the model
-
-
-# Define model
-food11_model = models.mobilenet_v2(weights='MobileNet_V2_Weights.DEFAULT')
-num_ftrs = food11_model.last_channel
-food11_model.classifier = nn.Sequential(
-    nn.Dropout(config["dropout_probability"]),
-    nn.Linear(num_ftrs, 11)
+import torch
+from datasets import Dataset as HFDataset
+from transformers import (
+    LlamaForCausalLM,
+    LlamaTokenizer,
+    Trainer,
+    TrainingArguments,
 )
 
-# Move to GPU
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-food11_model = food11_model.to(device)
-
-# Initial training: only the classification head, freeze the backbone/base model
-for param in food11_model.features.parameters():
-    param.requires_grad = False
-
-trainable_params  = sum(p.numel() for p in food11_model.parameters() if p.requires_grad)
-
-# Define loss and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(food11_model.classifier.parameters(), lr=config["lr"])
-
-
-### Before we start training - start an MLFlow run
-try: 
-    mlflow.end_run() # end pre-existing run, if there was one
-except:
-    pass
-finally:
-    mlflow.start_run(log_system_metrics=True) # Start MLFlow run
-    # automatically log GPU and CPU metrics
-    # Note: to automatically log AMD GPU metrics, you need to have installed pyrsmi
-    # Note: to automatically log NVIDIA GPU metrics, you need to have installed pynvml
-
-# Let's get the output of rocm-info or nvidia-smi as a string...
-gpu_info = next(
-    (subprocess.run(cmd, capture_output=True, text=True).stdout for cmd in ["nvidia-smi", "rocm-smi"] if subprocess.run(f"command -v {cmd}", shell=True, capture_output=True).returncode == 0),
-    "No GPU found."
-)
-# ... and send it to MLFlow as a text file
-mlflow.log_text(gpu_info, "gpu-info.txt")
-
-
-# Log hyperparameters - the things that we *set* in our experiment configuration
-mlflow.log_params(config)
-
-### Training loop for initial training
-
-best_val_loss = float('inf')
-
-# train new classification head on pre-trained model for a few epochs
-for epoch in range(config["initial_epochs"]):
-    epoch_start_time = time.time()
-    train_loss, train_acc = train(food11_model, train_loader, criterion, optimizer, device)
-    val_loss, val_acc = validate(food11_model, val_loader, criterion, device)
-    epoch_time = time.time() - epoch_start_time
-    print(f"Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_acc:.4f}, Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.4f}, Time: {epoch_time:.2f}s")
-
-    # Log metrics - the things we *measure* - to MLFlow
-    mlflow.log_metrics(
-        {"epoch_time": epoch_time,
-         "train_loss": train_loss,
-         "train_accuracy": train_acc,
-         "val_loss": val_loss,
-         "val_accuracy": val_acc,
-         "trainable_params": trainable_params,
-         }, step=epoch)
-
-    if val_loss < best_val_loss:
-        best_val_loss = val_loss
-        torch.save(food11_model, "food11.pth")
-        print("  Validation loss improved. Model saved.")
-
-### Un-freeze backbone/base model and keep training with smaller learning rate
-
-# unfreeze to fine-tune the entire model
-for param in food11_model.features.parameters():
-    param.requires_grad = True
-
-trainable_params  = sum(p.numel() for p in food11_model.parameters() if p.requires_grad)
-
-# optimizer for the entire model with a smaller learning rate for fine-tuning
-optimizer = optim.Adam(food11_model.parameters(), lr=config["fine_tune_lr"])
-
-patience_counter = 0
-
-# Fine-tune entire model for the remaining epochs
-for epoch in range(config["initial_epochs"], config["total_epochs"]):
-
-    epoch_start_time = time.time()
-    train_loss, train_acc = train(food11_model, train_loader, criterion, optimizer, device)
-    val_loss, val_acc = validate(food11_model, val_loader, criterion, device)
-    epoch_time = time.time() - epoch_start_time
-
-    print(f"Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_acc:.4f}, Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.4f}, Time: {epoch_time:.2f}s")
-
-    # Log metrics - the things we *measure* - to MLFlow
-    mlflow.log_metrics(
-        {"epoch_time": epoch_time,
-         "train_loss": train_loss,
-         "train_accuracy": train_acc,
-         "val_loss": val_loss,
-         "val_accuracy": val_acc,
-         "trainable_params": trainable_params,
-         }, step=epoch)
-
-    # Check for improvement in validation loss
-    if val_loss < best_val_loss:
-        best_val_loss = val_loss
-        patience_counter = 0
-        torch.save(food11_model, "food11.pth")
-        print("  Validation loss improved. Model saved.")
-
-        # Save the best model as an artifact in MLFlow
-        mlflow.pytorch.log_model(food11_model, "food11")
-    else:
-        patience_counter += 1
-        print(f"  No improvement in validation loss. Patience counter: {patience_counter}")
-
-    if patience_counter >= config["patience"]:
-        print("  Early stopping triggered.")
-        mlflow.log_metric("early_stopping_epoch", str(epoch))
-        break
-
-
-### Evaluate on test set
-test_loss, test_acc = validate(food11_model, test_loader, criterion, device)
-print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc:.2f}%")
-
-# Log test metrics to MLFlow
-mlflow.log_metrics(
-    {"test_loss": test_loss,
-    "test_accuracy": test_acc
+# —— 1. 加载原始 JSON 数据 —— #
+def load_dataset(file_path: str) -> HFDataset:
+    """
+    读取一个包含 {question, context, answer} 列表的 JSON 文件，
+    返回 HuggingFace Dataset。
+    """
+    with open(file_path, 'r', encoding='utf-8') as f:
+        raw = json.load(f)
+    return HFDataset.from_dict({
+        "question": [item["question"] for item in raw],
+        "context":  [item["context"]  for item in raw],
+        "answer":   [item["answer"]   for item in raw],
     })
 
-mlflow.end_run()
+# —— 2. 定义 Llama 专用的 Preprocessor —— #
+class LlamaQAPreprocessor:
+    def __init__(self, tokenizer, max_length=1024):
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        # 确保有 pad_token
+        if tokenizer.pad_token_id is None:
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    def __call__(self, examples):
+        input_ids_batch, attention_mask_batch, labels_batch = [], [], []
+
+        for q, c, a in zip(examples["question"], examples["context"], examples["answer"]):
+            # 构造 prompt
+            prompt = f"### 问题：{q}\n### 上下文：{c}\n### 回答："
+            # 分别编码 prompt 与 answer（带 eos）
+            prompt_ids = self.tokenizer(prompt, add_special_tokens=False)["input_ids"]
+            response_ids = self.tokenizer(a + self.tokenizer.eos_token, add_special_tokens=False)["input_ids"]
+
+            # 拼接并截断到 max_length
+            ids = prompt_ids + response_ids
+            if len(ids) > self.max_length:
+                ids = ids[: self.max_length]
+
+            # 构造 labels：prompt 部分全 -100，response 部分保留
+            labels = [-100] * len(prompt_ids) + response_ids
+            if len(labels) > self.max_length:
+                labels = labels[: self.max_length]
+
+            # attention mask
+            attention_mask = [1] * len(ids)
+
+            # padding 到固定长度
+            pad_len = self.max_length - len(ids)
+            if pad_len > 0:
+                ids            += [self.tokenizer.pad_token_id] * pad_len
+                attention_mask += [0] * pad_len
+                labels         += [-100] * pad_len
+
+            input_ids_batch.append(ids)
+            attention_mask_batch.append(attention_mask)
+            labels_batch.append(labels)
+
+        return {
+            "input_ids":      input_ids_batch,
+            "attention_mask": attention_mask_batch,
+            "labels":         labels_batch,
+        }
+
+# —— 3. 设备选择 —— #
+def setup_device():
+    if torch.backends.mps.is_available():
+        torch.mps.set_per_process_memory_fraction(0.9)
+        return "mps"
+    elif torch.cuda.is_available():
+        return "cuda"
+    else:
+        return "cpu"
+
+
+if __name__ == "__main__":
+    # —— MLflow 跟踪设置 —— #
+    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.6:8000/"
+    mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct")
+
+    # 关闭任何遗留的 run
+    try:
+        mlflow.end_run()
+    except Exception:
+        pass
+
+    with mlflow.start_run(log_system_metrics=True):
+        # —— 记录 GPU/CPU 信息为 artifact —— #
+        gpu_info = None
+        for cmd in ["nvidia-smi", "rocm-smi -v"]:
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if r.returncode == 0:
+                gpu_info = r.stdout
+                break
+        if gpu_info is None:
+            gpu_info = "No GPU found."
+        mlflow.log_text(gpu_info, "gpu-info.txt")
+
+        # —— 模型 & Tokenizer 初始化 —— #
+        model_name = "meta-llama/Llama-3.1-8B-Instruct"
+        tokenizer = LlamaTokenizer.from_pretrained(model_name)
+        model = LlamaForCausalLM.from_pretrained(
+            model_name,
+            load_in_8bit=True,     # 用 bitsandbytes 8-bit 加载，节省显存
+            device_map="auto",     # 自动分布到可用 GPU
+        )
+
+        # —— 设备搬模型 —— #
+        device = setup_device()
+        model.to(device)
+        print(f"Using device: {device}")
+
+        # —— 加载 & 预处理数据 —— #
+        raw_ds = load_dataset("model_training/qa_from_commits_formatted.json")
+        processor = LlamaQAPreprocessor(tokenizer, max_length=1024)
+        processed_ds = raw_ds.map(
+            processor,
+            batched=True,
+            batch_size=8,
+            remove_columns=["question", "context", "answer"],
+            num_proc=4,
+        )
+        processed_ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
+
+        # —— 训练参数 —— #
+        training_args = TrainingArguments(
+            output_dir="/mnt/object/llama3_qa_model",
+            per_device_train_batch_size=1,    # 8B 模型显存开销大
+            gradient_accumulation_steps=8,
+            num_train_epochs=3,
+            learning_rate=2e-5,
+            fp16=(device == "cuda"),
+            logging_steps=100,
+            save_steps=500,
+            report_to="mlflow",
+            optim="paged_adamw_8bit",
+            dataloader_num_workers=4,
+            dataloader_pin_memory=True,
+            remove_unused_columns=False,
+            dataloader_drop_last=True,
+            push_to_hub=False,
+        )
+
+        # —— 记录超参数 —— #
+        mlflow.log_params({
+            "model":                 model_name,
+            "per_device_batch_size": training_args.per_device_train_batch_size,
+            "grad_accumulation":     training_args.gradient_accumulation_steps,
+            "learning_rate":         training_args.learning_rate,
+            "device":                device,
+        })
+
+        # —— 启动训练 —— #
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=processed_ds,
+            tokenizer=tokenizer,
+        )
+        print("开始训练…")
+        trainer.train()
+
+        # —— 保存 & 上报模型 —— #
+        trainer.save_model(training_args.output_dir)
+        mlflow.transformers.log_model(
+            transformers_model={"model": model, "tokenizer": tokenizer},
+            artifact_path="commit_qa_llama3_model",
+            task="text-generation",
+        )
+        print("训练完成，模型已保存。")
