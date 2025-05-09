@@ -103,10 +103,12 @@ def save_qa_to_minio(question, answer, qa_id):
     # Store Q&A logs in a subfolder for organization, filename includes timestamp and ID
     s3_key = f"qa_logs/{timestamp}_{qa_id}.json" 
     qa_data = {
-        "id": qa_id,
-        "question": question,
-        "answer": answer,
-        "timestamp": timestamp
+        "data": {
+            "id": qa_id,
+            "question": question,
+            "answer": answer,
+            "timestamp": timestamp
+        }
     }
     try:
         s3.put_object(
