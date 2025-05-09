@@ -27,7 +27,7 @@ def load_dataset(file_path: str) -> HFDataset:
 
 # —— 2. 定义 Llama 专用的 Preprocessor —— #
 class LlamaQAPreprocessor:
-    def __init__(self, tokenizer, max_length=128):  # 进一步缩短 max_length
+    def __init__(self, tokenizer, max_length=64):  # 进一步缩短 max_length 到 64
         self.tokenizer = tokenizer
         self.max_length = max_length
         if tokenizer.pad_token_id is None:
@@ -54,16 +54,11 @@ class LlamaQAPreprocessor:
 
 # —— 3. 设备选择 —— #
 def setup_device():
-    if torch.backends.mps.is_available():
-        torch.mps.set_per_process_memory_fraction(0.9)
-        return "mps"
-    elif torch.cuda.is_available():
-        return "cuda"
-    else:
-        return "cpu"
+    # 强制使用 CPU，避免 GPU OOM
+    return "cpu"
 
 if __name__ == "__main__":
-    # 环境变量配置，减少显存碎片化
+    # 环境变量配置，减少显存碎片化（仅对 GPU 有效）
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
     os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.56:8000/"
     mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct")
@@ -73,7 +68,7 @@ if __name__ == "__main__":
         pass
 
     with mlflow.start_run(log_system_metrics=True):
-        # GPU 信息记录
+        # GPU/CPU 信息记录
         gpu_info = None
         for cmd in ["nvidia-smi", "rocm-smi -v"]:
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
@@ -82,29 +77,29 @@ if __name__ == "__main__":
                 break
         mlflow.log_text(gpu_info or "No GPU found.", "gpu-info.txt")
 
-        # 设备
+        # 设备（此处强制为 CPU）
         device = setup_device()
         print(f"Using device: {device}")
 
         # 模型 & Tokenizer
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
         tokenizer = AutoTokenizer.from_pretrained(model_name, token=True, padding_side="right")
-        dtype = torch.float16 if device in ["cuda", "mps"] else torch.float32
+        dtype = torch.float32
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
             device_map={"": device},
             token=True,
         )
-        model.gradient_checkpointing_enable()
+        # CPU 下无需梯度检查点
 
         # 数据加载与预处理
         raw_ds = load_dataset("model_training/qa_from_commits_formatted.json")
-        processor = LlamaQAPreprocessor(tokenizer, max_length=128)
+        processor = LlamaQAPreprocessor(tokenizer, max_length=64)
         processed_ds = raw_ds.map(
             processor,
             batched=True,
-            batch_size=8,
+            batch_size=1,
             remove_columns=["question", "context", "answer"],
             num_proc=4,
         )
@@ -114,21 +109,21 @@ if __name__ == "__main__":
         training_args = TrainingArguments(
             output_dir="/mnt/data/llama3_qa_model",
             per_device_train_batch_size=1,
-            gradient_accumulation_steps=4,  # 降低 grad accumulation
+            gradient_accumulation_steps=1,
             num_train_epochs=3,
             learning_rate=2e-5,
             fp16=False,
-            bf16=True,
-            gradient_checkpointing=True,
+            bf16=False,
             logging_steps=100,
             save_steps=500,
             report_to="mlflow",
             optim="adamw_torch",
-            dataloader_num_workers=4,
-            dataloader_pin_memory=True,
+            dataloader_num_workers=2,
+            dataloader_pin_memory=False,
             remove_unused_columns=False,
-            dataloader_drop_last=True,
+            dataloader_drop_last=False,
             push_to_hub=False,
+            no_cuda=True,
         )
 
         # 记录参数
@@ -147,7 +142,7 @@ if __name__ == "__main__":
             train_dataset=processed_ds,
             tokenizer=tokenizer,
         )
-        print("开始训练…")
+        print("开始训练… CPU 上可能会比较慢，请耐心等待…")
         trainer.train()
 
         # 保存 & 上报
