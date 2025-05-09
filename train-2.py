@@ -121,7 +121,7 @@ if __name__ == "__main__":
             torch_dtype=dtype,
             device_map="auto",
             use_auth_token=True,
-        ）
+        )
         
 
         # —— 设备搬模型 —— #
