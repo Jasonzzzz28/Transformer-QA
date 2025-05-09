@@ -11,21 +11,6 @@ from transformers import (
     TrainingArguments,
 )
 
-# —— DeepSpeed ZeRO Stage 1 配置 —— #
-ds_config = {
-    "zero_optimization": {
-        "stage": 1,
-        "offload_optimizer": {"device": "cpu"},
-        "offload_param":     {"device": "cpu"},
-        "contiguous_gradients": True,
-    },
-    "bf16": True,
-    "train_batch_size": 1,
-    "gradient_accumulation_steps": 8,
-}
-with open("ds_config.json", "w") as f:
-    json.dump(ds_config, f)
-
 # —— 1. 加载原始 JSON 数据 —— #
 def load_dataset(file_path: str) -> HFDataset:
     """
@@ -135,7 +120,6 @@ if __name__ == "__main__":
             fp16=False,
             bf16=True,
             gradient_checkpointing=True,
-            deepspeed="ds_config.json",
             logging_steps=100,
             save_steps=500,
             report_to="mlflow",
