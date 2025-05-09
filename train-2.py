@@ -27,7 +27,7 @@ def load_dataset(file_path: str) -> HFDataset:
 
 # —— 2. 定义 Llama 专用的 Preprocessor —— #
 class LlamaQAPreprocessor:
-    def __init__(self, tokenizer, max_length=1024):
+    def __init__(self, tokenizer, max_length=512):
         self.tokenizer = tokenizer
         self.max_length = max_length
         # 确保有 pad_token
@@ -86,7 +86,8 @@ def setup_device():
 
 
 if __name__ == "__main__":
-    # —— MLflow 跟踪设置 —— #
+    # —— 环境变量 & MLflow 跟踪设置 —— #
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
     os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.56:8000/"
     mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct")
 
@@ -107,32 +108,31 @@ if __name__ == "__main__":
         if gpu_info is None:
             gpu_info = "No GPU found."
         mlflow.log_text(gpu_info, "gpu-info.txt")
+
+        # 设备选择
         device = setup_device()
+        print(f"Using device: {device}")
 
         # —— 模型 & Tokenizer 初始化 —— #
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
-            use_auth_token=True,
+            token=True,
             padding_side="right"
         )
-        dtype = torch.float16 if device == "cuda" else torch.float32
+        dtype = torch.float16 if device == "cuda" or device == "mps" else torch.float32
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
             device_map={"": device},
-            use_auth_token=True,
+            token=True,
         )
-        
-
-        # —— 设备搬模型 —— #
-       
-        model.to(device)
-        print(f"Using device: {device}")
+        # 开启梯度检查点
+        model.gradient_checkpointing_enable()
 
         # —— 加载 & 预处理数据 —— #
         raw_ds = load_dataset("model_training/qa_from_commits_formatted.json")
-        processor = LlamaQAPreprocessor(tokenizer, max_length=1024)
+        processor = LlamaQAPreprocessor(tokenizer, max_length=512)
         processed_ds = raw_ds.map(
             processor,
             batched=True,
@@ -149,7 +149,8 @@ if __name__ == "__main__":
             gradient_accumulation_steps=8,
             num_train_epochs=3,
             learning_rate=2e-5,
-            fp16=(device == "cuda"),
+            fp16=(device == "cuda" or device == "mps"),
+            gradient_checkpointing=True,
             logging_steps=100,
             save_steps=500,
             report_to="mlflow",
@@ -188,4 +189,3 @@ if __name__ == "__main__":
             task="text-generation",
         )
         print("训练完成，模型已保存。")
-
