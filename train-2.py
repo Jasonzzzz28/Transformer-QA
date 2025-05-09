@@ -27,7 +27,7 @@ def load_dataset(file_path: str) -> HFDataset:
 
 # —— 2. 定义 Llama 专用的 Preprocessor —— #
 class LlamaQAPreprocessor:
-    def __init__(self, tokenizer, max_length=256):
+    def __init__(self, tokenizer, max_length=128):  # 进一步缩短 max_length
         self.tokenizer = tokenizer
         self.max_length = max_length
         if tokenizer.pad_token_id is None:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
         # 数据加载与预处理
         raw_ds = load_dataset("model_training/qa_from_commits_formatted.json")
-        processor = LlamaQAPreprocessor(tokenizer, max_length=256)
+        processor = LlamaQAPreprocessor(tokenizer, max_length=128)
         processed_ds = raw_ds.map(
             processor,
             batched=True,
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         training_args = TrainingArguments(
             output_dir="/mnt/data/llama3_qa_model",
             per_device_train_batch_size=1,
-            gradient_accumulation_steps=8,
+            gradient_accumulation_steps=4,  # 降低 grad accumulation
             num_train_epochs=3,
             learning_rate=2e-5,
             fp16=False,
