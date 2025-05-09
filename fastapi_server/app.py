@@ -34,8 +34,8 @@ app = FastAPI(
 )
 
 # Global variables for model and tokenizer
-base_model_name = "meta-llama/Llama-3.2-1B-Instruct" # TODO: Change this to the final model, or move to environment variable
-# base_model_name = "facebook/opt-125m"
+# base_model_name = "meta-llama/Llama-3.2-1B-Instruct" # TODO: Change this to the final model, or move to environment variable
+base_model_name = "facebook/opt-125m"
 # uncomment this to load model from local files
 # base_model_name = "Llama-3.1-8B-Instruct"
 model = None
