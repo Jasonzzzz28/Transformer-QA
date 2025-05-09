@@ -15,6 +15,7 @@ services:
     ports:
       - "8000:8000"  # for HTTP requests
     volumes:
+      - /mnt/object:/app/object # for testing
       # - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/app/Llama-3.1-8B-Instruct  # TODO: Change this to the final model
     # environment:
     #   - MODEL_PATH=placeholder
