@@ -6,7 +6,7 @@ import torch
 from datasets import Dataset as HFDataset
 from transformers import (
     LlamaForCausalLM,
-    LlamaTokenizer,
+    AutoTokenizer,
     Trainer,
     TrainingArguments,
 )
@@ -109,12 +109,17 @@ if __name__ == "__main__":
         mlflow.log_text(gpu_info, "gpu-info.txt")
 
         # —— 模型 & Tokenizer 初始化 —— #
-        model_name = "meta-llama/Llama-3.1-8B-Instruct"
-        tokenizer = LlamaTokenizer.from_pretrained(model_name)
+        model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            use_auth_token=True,
+            padding_side="right"
+        )
         model = LlamaForCausalLM.from_pretrained(
             model_name,
-            load_in_8bit=True,     # 用 bitsandbytes 8-bit 加载，节省显存
-            device_map="auto",     # 自动分布到可用 GPU
+            load_in_8bit=True,
+            device_map="auto",
+            use_auth_token=True,
         )
 
         # —— 设备搬模型 —— #
@@ -137,7 +142,7 @@ if __name__ == "__main__":
         # —— 训练参数 —— #
         training_args = TrainingArguments(
             output_dir="/mnt/object/llama3_qa_model",
-            per_device_train_batch_size=1,    # 8B 模型显存开销大
+            per_device_train_batch_size=1,
             gradient_accumulation_steps=8,
             num_train_epochs=3,
             learning_rate=2e-5,
@@ -180,3 +185,4 @@ if __name__ == "__main__":
             task="text-generation",
         )
         print("训练完成，模型已保存。")
+
