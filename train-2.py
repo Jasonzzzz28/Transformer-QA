@@ -93,8 +93,8 @@ if __name__ == "__main__":
             use_auth_token=True,
             padding_side="right"
         )
-        # 8B Llama 支持 FP16 半精度
-        dtype = torch.float16 if device == "cuda" else torch.float32
+        # AMD GPU 上使用 bfloat16
+        dtype = torch.bfloat16 if device == "cuda" else torch.float32
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
@@ -123,8 +123,8 @@ if __name__ == "__main__":
             gradient_accumulation_steps=8,
             num_train_epochs=3,
             learning_rate=2e-5,
-            fp16=(device == "cuda"),
-            bf16=False,
+            fp16=False,
+            bf16=True,
             gradient_checkpointing=True,
             logging_steps=100,
             save_steps=500,
