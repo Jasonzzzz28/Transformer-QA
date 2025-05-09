@@ -120,7 +120,7 @@ if __name__ == "__main__":
             token=True,
             padding_side="right"
         )
-        dtype = torch.float16 if device == "cuda" or device == "mps" else torch.float32
+        dtype = torch.float16 if device in ["cuda", "mps"] else torch.float32
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
@@ -149,7 +149,8 @@ if __name__ == "__main__":
             gradient_accumulation_steps=8,
             num_train_epochs=3,
             learning_rate=2e-5,
-            fp16=(device == "cuda" or device == "mps"),
+            fp16=False,  # 关闭 AMP，避免 FP16 unscale 错误
+            bf16=False,
             gradient_checkpointing=True,
             logging_steps=100,
             save_steps=500,
