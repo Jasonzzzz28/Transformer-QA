@@ -107,6 +107,7 @@ if __name__ == "__main__":
         if gpu_info is None:
             gpu_info = "No GPU found."
         mlflow.log_text(gpu_info, "gpu-info.txt")
+        device = setup_device()
 
         # —— 模型 & Tokenizer 初始化 —— #
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
@@ -125,7 +126,7 @@ if __name__ == "__main__":
         
 
         # —— 设备搬模型 —— #
-        device = setup_device()
+       
         model.to(device)
         print(f"Using device: {device}")
 
