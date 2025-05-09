@@ -1,4 +1,4 @@
-name: fastapi_test
+name: Transformer-QA
 services:
   fastapi_server:
     build:
@@ -15,7 +15,7 @@ services:
     ports:
       - "8000:8000"  # for HTTP requests
     volumes:
-      - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/app/Llama-3.1-8B-Instruct  # TODO: Change this to the final model
+      # - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/app/Llama-3.1-8B-Instruct  # TODO: Change this to the final model
     # environment:
     #   - MODEL_PATH=placeholder
 
@@ -26,7 +26,8 @@ services:
       - "8888:8888"
     volumes:
       - /home/cc:/home/jovyan/work # mount workspace, update to workspace path when everything is ready
-      - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/home/jovyan/Llama-3.1-8B-Instruct
+      # - /mnt/object/meta-llama/Llama-3.1-8B-Instruct:/home/jovyan/Llama-3.1-8B-Instruct
+      - /mnt/object:/home/jovyan/object # for testing
     command: >
       bash -c "python3 -m pip install numpy && start-notebook.sh"
 
@@ -78,7 +79,7 @@ services:
       - MINIO_ROOT_USER=your-access-key
       - MINIO_ROOT_PASSWORD=your-secret-key
     volumes:
-      - minio_data:/data
+      - /mnt/object/minio_data:/data
     command: server /data --console-address ':9001'
 
   minio-init:
@@ -100,7 +101,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - /home/cc/eval-loop-chi/scripts:/label-studio/scripts
+      - /home/cc/labelstudio/scripts:/label-studio/scripts
     environment:
       - LABEL_STUDIO_URL=http://label-studio:8080
       - LABEL_STUDIO_USERNAME=labelstudio@example.com
