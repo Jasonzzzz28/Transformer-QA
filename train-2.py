@@ -27,7 +27,7 @@ def load_dataset(file_path: str) -> HFDataset:
 
 # —— 2. 定义 Llama 专用的 Preprocessor —— #
 class LlamaQAPreprocessor:
-    def __init__(self, tokenizer, max_length=64):  # 进一步缩短 max_length 到 64
+    def __init__(self, tokenizer, max_length=256):
         self.tokenizer = tokenizer
         self.max_length = max_length
         if tokenizer.pad_token_id is None:
@@ -54,11 +54,16 @@ class LlamaQAPreprocessor:
 
 # —— 3. 设备选择 —— #
 def setup_device():
-    # 强制使用 CPU，避免 GPU OOM
-    return "cpu"
+    if torch.backends.mps.is_available():
+        torch.mps.set_per_process_memory_fraction(0.9)
+        return "mps"
+    elif torch.cuda.is_available():
+        return "cuda"
+    else:
+        return "cpu"
 
 if __name__ == "__main__":
-    # 环境变量配置，减少显存碎片化（仅对 GPU 有效）
+    # 减少显存碎片化
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
     os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.56:8000/"
     mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct")
@@ -68,7 +73,7 @@ if __name__ == "__main__":
         pass
 
     with mlflow.start_run(log_system_metrics=True):
-        # GPU/CPU 信息记录
+        # 记录 GPU/CPU 信息
         gpu_info = None
         for cmd in ["nvidia-smi", "rocm-smi -v"]:
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
@@ -77,29 +82,35 @@ if __name__ == "__main__":
                 break
         mlflow.log_text(gpu_info or "No GPU found.", "gpu-info.txt")
 
-        # 设备（此处强制为 CPU）
+        # 设备选择
         device = setup_device()
         print(f"Using device: {device}")
 
-        # 模型 & Tokenizer
+        # 模型 & Tokenizer 初始化
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-        tokenizer = AutoTokenizer.from_pretrained(model_name, token=True, padding_side="right")
-        dtype = torch.float32
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            use_auth_token=True,
+            padding_side="right"
+        )
+        # 8B Llama 支持 FP16 半精度
+        dtype = torch.float16 if device == "cuda" else torch.float32
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
             device_map={"": device},
-            token=True,
+            use_auth_token=True,
         )
-        # CPU 下无需梯度检查点
+        # 启用梯度检查点以节省显存
+        model.gradient_checkpointing_enable()
 
-        # 数据加载与预处理
+        # 加载 & 预处理数据
         raw_ds = load_dataset("model_training/qa_from_commits_formatted.json")
-        processor = LlamaQAPreprocessor(tokenizer, max_length=64)
+        processor = LlamaQAPreprocessor(tokenizer, max_length=256)
         processed_ds = raw_ds.map(
             processor,
             batched=True,
-            batch_size=1,
+            batch_size=4,
             remove_columns=["question", "context", "answer"],
             num_proc=4,
         )
@@ -109,24 +120,24 @@ if __name__ == "__main__":
         training_args = TrainingArguments(
             output_dir="/mnt/data/llama3_qa_model",
             per_device_train_batch_size=1,
-            gradient_accumulation_steps=1,
+            gradient_accumulation_steps=8,
             num_train_epochs=3,
             learning_rate=2e-5,
-            fp16=False,
+            fp16=(device == "cuda"),
             bf16=False,
+            gradient_checkpointing=True,
             logging_steps=100,
             save_steps=500,
             report_to="mlflow",
             optim="adamw_torch",
-            dataloader_num_workers=2,
-            dataloader_pin_memory=False,
+            dataloader_num_workers=4,
+            dataloader_pin_memory=True,
             remove_unused_columns=False,
-            dataloader_drop_last=False,
+            dataloader_drop_last=True,
             push_to_hub=False,
-            no_cuda=True,
         )
 
-        # 记录参数
+        # 记录超参数
         mlflow.log_params({
             "model": model_name,
             "batch_size": training_args.per_device_train_batch_size,
@@ -135,17 +146,17 @@ if __name__ == "__main__":
             "device": device,
         })
 
-        # 训练
+        # 启动训练
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=processed_ds,
             tokenizer=tokenizer,
         )
-        print("开始训练… CPU 上可能会比较慢，请耐心等待…")
+        print("开始训练…")
         trainer.train()
 
-        # 保存 & 上报
+        # 保存 & 上报模型
         trainer.save_model(training_args.output_dir)
         mlflow.transformers.log_model(
             transformers_model={"model": model, "tokenizer": tokenizer},
