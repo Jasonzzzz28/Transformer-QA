@@ -3,6 +3,7 @@ import os
 import json
 import subprocess
 import mlflow
+import mlflow.pytorch
 import torch
 from transformers import (
     T5ForConditionalGeneration,
@@ -61,7 +62,7 @@ def setup_device():
 
 if __name__ == "__main__":
     # —— MLflow 跟踪设置 —— #
-    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.56:8000/"
+    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.6:8000/"
     mlflow.set_experiment("Commit QA Training - Optimized")
 
     # —— 先结束任何遗留的 run —— #
@@ -103,12 +104,11 @@ if __name__ == "__main__":
             remove_columns=["input", "answer"],
             num_proc=4
         )
-        # 交给 data_collator 做最终的张量转换 & padding
         processed_ds.set_format(type=None)
 
         # —— 训练参数 —— #
         training_args = Seq2SeqTrainingArguments(
-            output_dir="/mnt/object/trained_models",
+            output_dir="/home/jovyan/work",    # ← 已去掉末尾空格
             per_device_train_batch_size=16,
             gradient_accumulation_steps=2,
             num_train_epochs=3,
@@ -153,12 +153,21 @@ if __name__ == "__main__":
         print("开始训练…")
         trainer.train()
 
-        # —— 保存 & 上报模型 —— #
+        # —— 保存 & 上传模型 —— #
         trainer.save_model(training_args.output_dir)
-        mlflow.transformers.log_model(
-            transformers_model={"model": model, "tokenizer": tokenizer},
-            artifact_path="commit_qa_model",
-            task="text2text-generation"
-        )
-        print("训练完成，模型已保存。")
 
+        # 1) 使用 PyTorch flavor 上传模型
+        mlflow.pytorch.log_model(
+            pytorch_model=model,
+            artifact_path="commit_qa_model_pytorch"
+        )
+
+        # 2) 保存并上传 tokenizer
+        tokenizer_dir = os.path.join(training_args.output_dir, "tokenizer")
+        tokenizer.save_pretrained(tokenizer_dir)
+        mlflow.log_artifacts(
+            local_dir=tokenizer_dir,
+            artifact_path="commit_qa_tokenizer"
+        )
+
+        print("训练完成，模型和 tokenizer 已保存并上传到 MLflow。")
