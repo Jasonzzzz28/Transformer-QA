@@ -6,6 +6,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import logging
 import time
 import os
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # TODO: Test the fastapi server
 
@@ -123,3 +124,5 @@ def get_model_response(question_text):
         return full_output[len(question_text):].strip()
     else:
         return full_output.strip()
+
+Instrumentator().instrument(app).expose(app)
