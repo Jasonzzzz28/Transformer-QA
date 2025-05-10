@@ -37,12 +37,12 @@ class Base_Memory_3():
 
     def init_vector_db(self):
         d = self.retrieval_model.config.hidden_size
-        n_list = 150
-        m = 16
-        nbits = 8
+        # n_list = 150
+        # m = 16
+        # nbits = 8
         quantizer = faiss.IndexFlatIP(d)
-        index = faiss.IndexIVFPQ(quantizer, d, n_list, m, nbits, faiss.METRIC_INNER_PRODUCT)
-        return index
+        # index = faiss.IndexIVFPQ(quantizer, d, n_list, m, nbits, faiss.METRIC_INNER_PRODUCT)
+        return quantizer
     
     # Chunck the knowledgebase and store them to the disk without model involving
     def process_knowledge_base(self, knowledge_base: List[str], save_path: str):
@@ -65,9 +65,9 @@ class Base_Memory_3():
 
         # Build and store vector database
         chunk_embeddings = np.vstack(chunk_embeddings)
-        self.vector_db.train(chunk_embeddings)
+        # self.vector_db.train(chunk_embeddings)
         self.vector_db.add(chunk_embeddings)
-        self.vector_db.nprobe = 32
+        # self.vector_db.nprobe = 32
         # Save to disk
         self._save_to_disk(save_path)
     
