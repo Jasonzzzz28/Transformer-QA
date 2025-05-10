@@ -3,8 +3,6 @@ import os
 import time
 import numpy as np
 import json
-# import tritonclient.http as httpclient
-# from tritonclient.utils import triton_to_np_dtype
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForQuestionAnswering
 import requests
@@ -50,21 +48,6 @@ tokenizer = AutoTokenizer.from_pretrained("facebook/opt-125m")
 
 # FastAPI server configuration
 FASTAPI_SERVER_URL = os.environ['FASTAPI_SERVER_URL']
-
-# Triton server configuration
-# TRITON_SERVER_URL = os.environ['TRITON_SERVER_URL']
-# MODEL_NAME = os.environ['FOOD11_MODEL_NAME']
-
-# def get_model_response_local_automodel(question_text):
-#     inputs = tokenizer(question_text, return_tensors="pt")
-#     with torch.no_grad():
-#         outputs = model(**inputs)
-    
-#     # Take the embedding for [CLS] or first token
-#     embedding = outputs.last_hidden_state[0][0]
-    
-#     # Convert to a simple list for display or further processing
-#     return embedding.tolist()
 
 def get_model_response_local(question_text):
     # Tokenize input

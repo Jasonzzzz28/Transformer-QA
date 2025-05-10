@@ -8,8 +8,6 @@ import time
 import os
 from prometheus_fastapi_instrumentator import Instrumentator
 
-# TODO: Test the fastapi server
-
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -61,10 +59,13 @@ async def startup_event():
     logger.info(f"Loading model: {model_path}")
     
     try:
-        # Load tokenizer and model
-        model = AutoModelForCausalLM.from_pretrained(base_model_name)
+        # Load tokenizer and model with FP16 quantization
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model_name,
+            torch_dtype=torch.float16
+        )
 
-        # TODO: Use vllm behind fastapi for inference
+        # TODO: Uncomment this to load model from local files
         # state_dict = torch.load(model_path, map_location=torch.device(device))
         # model.load_state_dict(state_dict)
 
@@ -103,10 +104,12 @@ async def answer_question(request: QARequest):
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
     
 def get_model_response(question_text):
+    prompt = f"Question: {question_text}\nAnswer:"
+    
     # Tokenize input
-    inputs = tokenizer(question_text, return_tensors="pt")
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    input_length = len(inputs["input_ids"][0])
 
-    # TODO: Add prompt to make this extractive QA
     # Generate response
     with torch.no_grad():
         outputs = model.generate(
@@ -114,15 +117,13 @@ def get_model_response(question_text):
             max_new_tokens=50,
             do_sample=True,
             temperature=0.7,
-            top_p=0.95
+            top_p=0.95,
+            pad_token_id=tokenizer.eos_token_id
         )
 
+    # Decode and extract only the answer part using input length
     full_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-    # Remove the prompt from the generated output
-    if full_output.startswith(question_text):
-        return full_output[len(question_text):].strip()
-    else:
-        return full_output.strip()
+    answer = tokenizer.decode(outputs[0][input_length:], skip_special_tokens=True).strip()
+    return answer
 
 Instrumentator().instrument(app).expose(app)
