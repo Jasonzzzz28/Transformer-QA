@@ -34,7 +34,8 @@ app = FastAPI(
 )
 
 # Global variables for model and tokenizer
-base_model_name = "facebook/opt-125m" # TODO: Change this to the final model, or move to environment variable
+# base_model_name = "meta-llama/Llama-3.2-1B-Instruct" # TODO: Change this to the final model, or move to environment variable
+base_model_name = "facebook/opt-125m"
 # uncomment this to load model from local files
 # base_model_name = "Llama-3.1-8B-Instruct"
 model = None
@@ -61,9 +62,12 @@ async def startup_event():
     try:
         # Load tokenizer and model
         model = AutoModelForCausalLM.from_pretrained(base_model_name)
-        state_dict = torch.load(model_path, map_location=torch.device(device))
-        model.load_state_dict(state_dict)
-        # model.eval()
+
+        # TODO: Use vllm behind fastapi for inference
+        # state_dict = torch.load(model_path, map_location=torch.device(device))
+        # model.load_state_dict(state_dict)
+
+        model.eval()
         model.to(device)
         tokenizer = AutoTokenizer.from_pretrained(base_model_name)
         logger.info("Model loaded successfully")
@@ -101,11 +105,12 @@ def get_model_response(question_text):
     # Tokenize input
     inputs = tokenizer(question_text, return_tensors="pt")
 
+    # TODO: Add prompt to make this extractive QA
     # Generate response
     with torch.no_grad():
         outputs = model.generate(
             input_ids=inputs["input_ids"],
-            max_new_tokens=100,
+            max_new_tokens=50,
             do_sample=True,
             temperature=0.7,
             top_p=0.95

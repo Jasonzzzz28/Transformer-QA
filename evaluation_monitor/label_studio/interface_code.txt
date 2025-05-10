@@ -1,0 +1,11 @@
+<View>
+  <Header value="Question:"/>
+  <Text name="question" value="$question"/>
+
+  <Header value="Answer:"/>
+  <Text name="answer_text" value="$answer" />
+
+  <Header value="How would you rate this answer (1 = poor, 5 = excellent)?" />
+  <Rating name="score" toName="answer_text" maxRating="5" icon="star" defaultValue="3" />
+
+</View>

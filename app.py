@@ -8,8 +8,38 @@ import json
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForQuestionAnswering
 import requests
+import boto3 # Added for MinIO
+import uuid # Added for unique IDs
+from datetime import datetime # Added for timestamping
+from concurrent.futures import ThreadPoolExecutor # Added for asynchronous tasks
 
 app = Flask(__name__)
+
+# Initialize ThreadPoolExecutor for asynchronous tasks
+executor = ThreadPoolExecutor(max_workers=2)
+
+# MinIO Configuration
+MINIO_URL = os.environ.get('MINIO_URL')
+MINIO_USER = os.environ.get('MINIO_USER')
+MINIO_PASSWORD = os.environ.get('MINIO_PASSWORD')
+BUCKET_NAME = "production" # Bucket name as per minio-init
+
+s3 = None
+if MINIO_URL and MINIO_USER and MINIO_PASSWORD:
+    try:
+        s3 = boto3.client(
+            's3',
+            endpoint_url=MINIO_URL,
+            aws_access_key_id=MINIO_USER,
+            aws_secret_access_key=MINIO_PASSWORD,
+            region_name='us-east-1' # Standard practice, MinIO doesn't strictly use it
+        )
+        print("Successfully connected to MinIO.")
+    except Exception as e:
+        print(f"Error connecting to MinIO: {e}")
+else:
+    print("Warning: MinIO environment variables (MINIO_URL, MINIO_USER, MINIO_PASSWORD) not fully set. Q&A logging to MinIO will be disabled.")
+
 
 # local model configuration
 model = AutoModelForCausalLM.from_pretrained("facebook/opt-125m")
@@ -59,69 +89,35 @@ def get_model_response_local(question_text):
         return full_output.strip()
     
 def get_model_response_fastapi(question_text):
-    response = requests.post(f"{FASTAPI_SERVER_URL}/predict", json={"question": question_text})
+    response = requests.post(f"{FASTAPI_SERVER_URL}/answer", json={"question": question_text})
     response.raise_for_status()
     return response.json().get("answer", "")
 
-def get_model_response_triton(question_text):
+# Function to save Q&A data to MinIO
+def save_qa_to_minio(question, answer, qa_id):
+    if not s3:
+        print(f"MinIO client not initialized. Skipping save for Q&A ID: {qa_id}")
+        return
+
+    timestamp = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    # Store Q&A logs in a subfolder for organization, filename includes timestamp and ID
+    s3_key = f"{timestamp}_{qa_id}.json" 
+    qa_data = {
+        "id": qa_id,
+        "question": question,
+        "answer": answer,
+        "timestamp": timestamp
+    }
     try:
-        # Create a Triton client
-        triton_client = httpclient.InferenceServerClient(url=TRITON_SERVER_URL)
-        
-        # Check if the server is ready
-        if not triton_client.is_server_ready():
-            return "Triton server is not ready."
-        
-        # Check if the model is ready
-        if not triton_client.is_model_ready(MODEL_NAME):
-            return f"Model {MODEL_NAME} is not ready."
-        
-        prompt = f"<|system|>\nYou are a helpful AI assistant.\n<|user|>\n{question_text}\n<|assistant|>"
-        
-        # Create the input data as a numpy array of strings
-        input_data = np.array([prompt], dtype=np.object_)
-        
-        # Input parameters for the model
-        inputs = []
-        inputs.append(httpclient.InferInput("text_input", input_data.shape, "BYTES"))
-        inputs[0].set_data_from_numpy(input_data)
-        
-        # Parameters for text generation
-        parameters = {
-            "temperature": 0.7,
-            "max_tokens": 256,
-            "top_p": 0.95,
-            "top_k": 40
-        }
-        
-        # Convert parameters to JSON string
-        parameters_json = json.dumps(parameters)
-        parameters_data = np.array([parameters_json], dtype=np.object_)
-        
-        # Add parameters as another input
-        inputs.append(httpclient.InferInput("parameters", parameters_data.shape, "BYTES"))
-        inputs[1].set_data_from_numpy(parameters_data)
-        
-        # Define the expected output
-        outputs = []
-        outputs.append(httpclient.InferRequestedOutput("text_output"))
-        
-        # Execute the inference request
-        results = triton_client.infer(
-            model_name=MODEL_NAME,
-            inputs=inputs,
-            outputs=outputs
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=s3_key,
+            Body=json.dumps(qa_data),
+            ContentType='application/json'
         )
-        
-        # Process the results
-        output_data = results.as_numpy("text_output")
-        response_text = output_data[0].decode('utf-8')
-        
-        return response_text
-    
+        print(f"Q&A {qa_id} saved to MinIO: {BUCKET_NAME}/{s3_key}")
     except Exception as e:
-        print(f"Error when calling Triton server: {e}")
-        return f"Error processing request: {str(e)}"
+        print(f"Error saving Q&A {qa_id} to MinIO: {e}")
 
 @app.route('/', methods=['GET'])
 def index():
@@ -135,14 +131,23 @@ def ask():
     # For debugging
     print(f"Received question: {question}")
     
-    # Get response from Triton server
+    # Get response from model
     start_time = time.time()
-    response = get_model_response_local(question)
+    response_text = get_model_response_fastapi(question)
+    # response_text = get_model_response_local(question)
     end_time = time.time()
     
     print(f"Response time: {end_time - start_time:.2f} seconds")
+
+    # Save Q&A to MinIO asynchronously if s3 client is available
+    if s3 and question and response_text: 
+        qa_id = str(uuid.uuid4())
+        try:
+            executor.submit(save_qa_to_minio, question, response_text, qa_id)
+        except Exception as e:
+            print(f"Error submitting Q&A save task to executor: {e}")
     
-    return jsonify({'response': response})
+    return jsonify({'response': response_text})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5000)

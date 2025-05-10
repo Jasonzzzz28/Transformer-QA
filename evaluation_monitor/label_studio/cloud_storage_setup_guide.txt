@@ -1,0 +1,9 @@
+Storage type: AWS S3 (MinIO is an S3-compatible object store service)
+Storage title: MinIO
+Bucket name: production
+File Filter Regex: .*\.json$
+S3 endpoint: http://A.B.C.D:9000 (substitute the floating IP address assigned to your instance)
+Access key ID: your-access-key
+Secret access key: your-secret-key
+Treat every bucket object as a source file: checked (so that each object in the bucket is interpreted as an image to classify)
+Recursive scan: checked (so that it will look inside all of the class-specific directories)
