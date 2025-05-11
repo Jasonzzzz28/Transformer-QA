@@ -65,7 +65,7 @@ def setup_device():
 if __name__ == "__main__":
     # 减少显存碎片化
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
-    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.56:8000/"
+    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.60:8000"
     mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct")
     try:
         mlflow.end_run()
