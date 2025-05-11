@@ -19,10 +19,10 @@ from peft import LoraConfig, get_peft_model, TaskType
 os.environ["MLFLOW_TRACKING_URI"]      = "http://129.114.108.60:8000"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64,garbage_collection_threshold:0.6"
 
-# —— 自定义 Trainer，显式计算 loss —— #
+# —— 自定义 Trainer，修正 compute_loss 签名 —— #
 class MyTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
-        # HuggingFace causal LM expects labels passed in inputs
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        # 取出 labels 并交给模型计算 loss
         labels = inputs.pop("labels")
         outputs = model(**inputs, labels=labels)
         loss = outputs.loss
@@ -69,7 +69,7 @@ def main():
     # —— MLflow run —— #
     mlflow.set_experiment("Commit QA Training")
     with mlflow.start_run():
-        # 记录 GPU info
+        # 记录 GPU 信息
         for cmd in ["nvidia-smi", "rocm-smi -v"]:
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             if r.returncode == 0:
@@ -112,19 +112,15 @@ def main():
             target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         )
         model = get_peft_model(model, lora_cfg)
-        model.print_trainable_parameters()  # 确认只有 LoRA 参数可训
+        model.print_trainable_parameters()
 
-        # 加载数据集
+        # 加载并预处理数据集
         ds = load_dataset("qa_from_commits_formatted.json")
-
-        # 指定新列的 schema
         feature_schema = Features({
-            "input_ids":      Sequence(feature=Value("int64"), length=128),
-            "attention_mask": Sequence(feature=Value("int64"), length=128),
-            "labels":         Sequence(feature=Value("int64"), length=128),
+            "input_ids":      Sequence(Value("int64"), length=128),
+            "attention_mask": Sequence(Value("int64"), length=128),
+            "labels":         Sequence(Value("int64"), length=128),
         })
-
-        # 预处理并 map
         proc = Preprocessor(tokenizer, max_length=128)
         ds   = ds.map(
             proc,
