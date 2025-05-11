@@ -19,7 +19,16 @@ from peft import LoraConfig, get_peft_model, TaskType
 os.environ["MLFLOW_TRACKING_URI"]      = "http://129.114.108.60:8000"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64,garbage_collection_threshold:0.6"
 
-# —— 数据加载函数 —— #
+# —— 自定义 Trainer，显式计算 loss —— #
+class MyTrainer(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # HuggingFace causal LM expects labels passed in inputs
+        labels = inputs.pop("labels")
+        outputs = model(**inputs, labels=labels)
+        loss = outputs.loss
+        return (loss, outputs) if return_outputs else loss
+
+# —— 数据加载 —— #
 def load_dataset(path: str) -> HFDataset:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -38,32 +47,29 @@ class Preprocessor:
             tokenizer.pad_token_id = tokenizer.eos_token_id
 
     def __call__(self, examples):
-        input_ids, attention_mask, labels = [], [], []
+        in_ids, attn, labs = [], [], []
         for q, c, a in zip(examples["question"], examples["context"], examples["answer"]):
             prompt_ids   = self.tokenizer(f"问题：{q}\n上下文：{c}\n回答：",
                                           add_special_tokens=False)["input_ids"]
             response_ids = self.tokenizer(a + self.tokenizer.eos_token,
                                           add_special_tokens=False)["input_ids"]
             ids    = (prompt_ids + response_ids)[: self.max_length]
-            labs   = ([-100] * len(prompt_ids) + response_ids)[: self.max_length]
+            labels = ([-100] * len(prompt_ids) + response_ids)[: self.max_length]
             padlen = self.max_length - len(ids)
             ids    += [self.tokenizer.pad_token_id] * padlen
-            labs   += [-100] * padlen
+            labels += [-100] * padlen
             mask   = [1] * (self.max_length - padlen) + [0] * padlen
 
-            input_ids.append(ids)
-            attention_mask.append(mask)
-            labels.append(labs)
-
-        return {"input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "labels": labels}
+            in_ids.append(ids)
+            attn.append(mask)
+            labs.append(labels)
+        return {"input_ids": in_ids, "attention_mask": attn, "labels": labs}
 
 def main():
     # —— MLflow run —— #
     mlflow.set_experiment("Commit QA Training")
     with mlflow.start_run():
-        # 记录 GPU 信息
+        # 记录 GPU info
         for cmd in ["nvidia-smi", "rocm-smi -v"]:
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             if r.returncode == 0:
@@ -71,16 +77,13 @@ def main():
                 break
 
         # 设备 & dtype
-        device = "cuda" if torch.cuda.is_available() else \
-                 "mps"  if torch.backends.mps.is_available()  else "cpu"
+        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
         dtype  = torch.bfloat16 if device == "cuda" else torch.float32
         print(f"Using device={device}, dtype={dtype}")
 
         # Tokenizer & 4-bit 量化
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-        tokenizer  = AutoTokenizer.from_pretrained(
-            model_name, use_auth_token=True, padding_side="right"
-        )
+        tokenizer  = AutoTokenizer.from_pretrained(model_name, use_auth_token=True, padding_side="right")
         bnb_cfg = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
@@ -99,7 +102,7 @@ def main():
         model.config.use_cache = False
         model.gradient_checkpointing_enable()
 
-        # 注入 LoRA
+        # 注入 LoRA adapter
         lora_cfg = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
             inference_mode=False,
@@ -109,19 +112,19 @@ def main():
             target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         )
         model = get_peft_model(model, lora_cfg)
-        model.print_trainable_parameters()
+        model.print_trainable_parameters()  # 确认只有 LoRA 参数可训
 
         # 加载数据集
         ds = load_dataset("qa_from_commits_formatted.json")
 
-        # 定义 map 时的 schema
+        # 指定新列的 schema
         feature_schema = Features({
-            "input_ids":       Sequence(feature=Value("int64"), length=128),
-            "attention_mask":  Sequence(feature=Value("int64"), length=128),
-            "labels":          Sequence(feature=Value("int64"), length=128),
+            "input_ids":      Sequence(feature=Value("int64"), length=128),
+            "attention_mask": Sequence(feature=Value("int64"), length=128),
+            "labels":         Sequence(feature=Value("int64"), length=128),
         })
 
-        # 预处理并指定 schema
+        # 预处理并 map
         proc = Preprocessor(tokenizer, max_length=128)
         ds   = ds.map(
             proc,
@@ -159,10 +162,10 @@ def main():
         })
 
         # 启动训练
-        trainer = Trainer(model=model, args=args, train_dataset=ds, tokenizer=tokenizer)
+        trainer = MyTrainer(model=model, args=args, train_dataset=ds, tokenizer=tokenizer)
         trainer.train()
 
-        # 保存
+        # 保存 LoRA adapter 与量化模型
         model.save_pretrained(args.output_dir)
         print(f"Saved to {args.output_dir}")
 
