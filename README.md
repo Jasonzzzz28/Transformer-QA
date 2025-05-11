@@ -293,7 +293,8 @@ For example:
 - Transformer Enthusiast: "Which Transformer is stronger: Optimus Prime or Megatron?"
 
 **Monitoring**
-<img width="1280" alt="image" src="https://github.com/user-attachments/assets/86f7b1f4-b6b9-401b-a214-dd4ad3b44742" />
+<img width="1280" alt="image" src="https://github.com/user-attachments/assets/be6ba4a9-ccf9-4a93-b594-3d3dcb9e0bba" />
+
 
 We use Prometheus and Grafana to monitor system performance, resource utilization, and application metrics. [See detailed dashboard configuration here](evaluation_monitor/grafana/dashboard.json). 
 
