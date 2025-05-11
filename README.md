@@ -167,10 +167,12 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 
 
-
-
+<br>
+<br>
 
 #### Model serving, evaluation and monitoring platforms
+<img width="1159" alt="image" src="https://github.com/user-attachments/assets/074419e5-6975-4ba4-8b34-627354fa86c2" />
+<img width="1159" alt="image" src="https://github.com/user-attachments/assets/3de7f37a-a07e-4ebe-90b9-ef1c2d222a74" />
 
 ***Environment Setup For Model Serving, Evaluation and Monitoring***
 
@@ -186,11 +188,11 @@ The following files are essential for setting up and running the entire applicat
   - [Dockerfile](Dockerfile): Used to build the Docker image for the application.
   - [requirements.txt](requirements.txt): Lists the Python dependencies required for the application.
 
-- **FastAPI Server**:
+- **FastAPI Server Setup**:
   - [fastapi_server/Dockerfile](fastapi_server/Dockerfile): Dockerfile for building the FastAPI server image.
   - [fastapi_server/requirements.txt](fastapi_server/requirements.txt): Lists the dependencies specific to the FastAPI server.
 
-- **Evaluation and Monitoring**:
+- **Evaluation and Monitoring Setup**:
   - [evaluation_monitor/docker/docker-compose.yml](evaluation_monitor/docker/docker-compose.yml): Docker Compose file for setting up evaluation and monitoring services.
   - [evaluation_monitor/docker/Dockerfile](evaluation_monitor/docker/Dockerfile): Dockerfile for building the evaluation and monitoring service image.
   - [evaluation_monitor/requirements.txt](evaluation_monitor/requirements.txt): Lists the dependencies required for evaluation and monitoring services.
