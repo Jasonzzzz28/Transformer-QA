@@ -2,10 +2,17 @@
 import os
 import json
 import subprocess
+
 import torch
 import mlflow
 from datasets import Dataset as HFDataset
-from transformers import LlamaForCausalLM, AutoTokenizer, Trainer, TrainingArguments, BitsAndBytesConfig
+from transformers import (
+    LlamaForCausalLM,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+    BitsAndBytesConfig,
+)
 from peft import LoraConfig, get_peft_model, TaskType
 
 # —— 1. 加载数据 —— #
@@ -57,8 +64,8 @@ def setup_device():
 
 if __name__ == "__main__":
     # 防止显存碎片化
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64,garbage_collection_threshold:0.6"
-    os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.60:8000"
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"]            = "max_split_size_mb:64,garbage_collection_threshold:0.6"
+    os.environ["MLFLOW_TRACKING_URI"]                 = "http://129.114.108.60:8000"
 
     mlflow.set_experiment("Commit QA Training - Llama3.1-8B-4bit-LoRA")
     with mlflow.start_run(log_system_metrics=True):
@@ -73,17 +80,16 @@ if __name__ == "__main__":
 
         # 设备 & dtype
         device = setup_device()
-        dtype = torch.bfloat16 if device == "cuda" else torch.float32
+        dtype  = torch.bfloat16 if device == "cuda" else torch.float32
         print(f"Using device={device}, dtype={dtype}")
 
         # —— 4. 初始化 Tokenizer & 4-bit 量化配置 —— #
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-        tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer  = AutoTokenizer.from_pretrained(
             model_name,
             use_auth_token=True,
             padding_side="right"
         )
-
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
@@ -112,12 +118,12 @@ if __name__ == "__main__":
         )
         model = get_peft_model(model, peft_config)
 
-        # 确认可训练参数
+        # 打印可训练参数比例，确认 LoRA 加载正确
         model.print_trainable_parameters()
 
         # —— 7. 准备数据集 —— #
-        raw_ds = load_dataset("qa_from_commits_formatted.json")
-        processor = LlamaQAPreprocessor(tokenizer, max_length=128)
+        raw_ds      = load_dataset("qa_from_commits_formatted.json")
+        processor   = LlamaQAPreprocessor(tokenizer, max_length=128)
         processed_ds = raw_ds.map(
             processor,
             batched=True,
@@ -145,30 +151,32 @@ if __name__ == "__main__":
             dataloader_drop_last=True
         )
 
-        # 记录所有超参数（一次性）
+        # 一次性记录所有超参，避免重复修改
         mlflow.log_params({
-            "model": model_name,
-            "quant": "4bit_nf4",
-            "lora_r": peft_config.r,
+            "model":      model_name,
+            "quant":      "4bit_nf4",
+            "lora_r":     peft_config.r,
             "lora_alpha": peft_config.lora_alpha,
             "lora_dropout": peft_config.lora_dropout,
             "max_length": 128,
             "batch_size": training_args.per_device_train_batch_size,
             "accum_steps": training_args.gradient_accumulation_steps,
-            "lr": training_args.learning_rate
+            "lr":          training_args.learning_rate,
         })
 
-        # —— 9. 启动训练 —— #
+        # —— 9. Trainer & 训练 —— #
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=processed_ds,
-            tokenizer=tokenizer
+            tokenizer=tokenizer,
+            label_names=["labels"],       # ← **关键**：明确告诉 Trainer 用哪个字段做标签
         )
         print(">>> 开始训练（4-bit + LoRA）…")
         trainer.train()
 
-        # —— 10. 保存 LoRA adapter & 退出 —— #
+        # —— 10. 保存 LoRA adapter —— #
         model.save_pretrained(training_args.output_dir)
         print(f">>> LoRA adapter 和量化模型已保存到 {training_args.output_dir}")
+
     print("=== 训练完成 ===")
