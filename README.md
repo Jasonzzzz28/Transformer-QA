@@ -170,7 +170,32 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 
 
-#### Model serving and monitoring platforms
+#### Model serving, evaluation and monitoring platforms
+
+***Environment Setup For Model Serving, Evaluation and Monitoring***
+
+The following files are essential for setting up and running the entire application:
+
+- **How To Run The Serving, Evaluation and Monitoring System**
+  ```bash
+  docker compose -f ~/Transformer-QA/docker/docker-compose-tqa.yaml up -d
+  ```
+
+- **Application Setup**:
+  - [docker/docker-compose-tqa.yaml](docker/docker-compose-tqa.yaml): Defines the services and configurations for deploying the application using Docker Compose.
+  - [Dockerfile](Dockerfile): Used to build the Docker image for the application.
+  - [requirements.txt](requirements.txt): Lists the Python dependencies required for the application.
+
+- **FastAPI Server**:
+  - [fastapi_server/Dockerfile](fastapi_server/Dockerfile): Dockerfile for building the FastAPI server image.
+  - [fastapi_server/requirements.txt](fastapi_server/requirements.txt): Lists the dependencies specific to the FastAPI server.
+
+- **Evaluation and Monitoring**:
+  - [evaluation_monitor/docker/docker-compose.yml](evaluation_monitor/docker/docker-compose.yml): Docker Compose file for setting up evaluation and monitoring services.
+  - [evaluation_monitor/docker/Dockerfile](evaluation_monitor/docker/Dockerfile): Dockerfile for building the evaluation and monitoring service image.
+  - [evaluation_monitor/requirements.txt](evaluation_monitor/requirements.txt): Lists the dependencies required for evaluation and monitoring services.
+  - [prometheus.yml](docker/prometheus.yml): Configuration file for Prometheus monitoring.
+
 
 ***Model Serving***
 
@@ -178,7 +203,7 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 - Backend: We will deploy our fine-tuned Llama-3.1-8B-Instruct model using FastAPI Server, exposing it through a REST API. The API will accept JSON-formatted requests containing user questions and return predictions in JSON format. For more details, refer to the [fastapi_server folder](fastapi_server/).
 
-- Frontend: A Flask-based web interface will handle user interactions and send requests to the FastAPI backend for real-time predictions.
+- Frontend: A Flask-based web interface will handle user interactions and send requests to the FastAPI backend for real-time predictions. For more details, refer to the [templates folder](templates/), [static folder](static/), [app.py file](app.py).
 
 - Endpoint Accessibility: The API will be hosted on Chameleon Cloud and accessible via a configurable URL.
 
@@ -221,7 +246,7 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 ***Evaluation and monitoring***
 
-**Offline Evaluation** 
+**Offline Evaluation** [See detailed implementation](evaluation_monitor/offline_eval/)
 
 Automated testing after training:
 
@@ -237,7 +262,7 @@ Automated testing after training:
 
 - Model Registration: Register new model only if it exceeds performance thresholds.
 
-**Staging Load Test**
+**Staging Load Test** [See detailed implementation](evaluation_monitor/load_test/load_test.py)
 
 Using load testing frameworks, like Locust, simulate concurrent users and measure:
 
@@ -251,9 +276,9 @@ Using load testing frameworks, like Locust, simulate concurrent users and measur
 
 - Optimize resources based on results
 
-**Canary Online Evaluation** 
+**Canary Online Evaluation** [See detailed implementation](evaluation_monitor/online_eval/simulate_traffic.py)
 
-We will conduct online evaluations in a canary environment by role-playing distinct user personas (novice, experienced developer, researcher). We'll generate questions representative of each persona and assess the model's usefulness and accuracy on these simulated interactions, in addition to standard load test metrics (QPS, latency, error rate).
+We will conduct online evaluations in a canary environment by role-playing distinct user personas (novice, experienced developer, researcher). We'll generate questions representative of each persona and assess the model's accuracy(EM, F1) on these simulated interactions, in addition to standard load test metrics (QPS, latency, error rate).
 
 For example:
 
@@ -265,13 +290,14 @@ For example:
   
 - Transformer Enthusiast: "Which Transformer is stronger: Optimus Prime or Megatron?"
 
+**Monitoring**
+We use Prometheus and Grafana to monitor system performance, resource utilization, and application metrics. [See detailed dashboard configuration here](evaluation_monitor/grafana/dashboard.json). 
+
 **Close the Loop** 
 
 We will gather feedback about the quality of the model's predictions through:
 
-- User feedback (thumbs up/down) within the front end.
-
-- Periodic review and annotation of model outputs by human annotators to identify and correct errors, biases, or areas for improvement.
+- Periodic review and annotation of model outputs by human annotators to identify and correct errors, biases, or areas for improvement. (This is achieved through label studio. [See detailed configuration here](evaluation_monitor/label_studio/))
 
 **Business Evaluation** 
 
@@ -284,8 +310,6 @@ We will gather feedback about the quality of the model's predictions through:
 - Monitoring Support Ticket Volume: Observing if the QA bot leads to a reduction in the number of support tickets related to the Transformers library, indicating improved self-service and code understanding.
 
 **Monitor for model degradation**
-
-- User Feedback Tracking: Continuously monitor user ratings (thumbs up/down) to detect declines in satisfaction.
 
 - Human Annotator Analysis: Track correction frequency to identify recurring model errors.
 
