@@ -1,0 +1,59 @@
+name: Evaluation-Monitor
+services:
+  offline-eval:
+    build:
+      context: ../..
+      dockerfile: evaluation_monitor/docker/Dockerfile
+    environment:
+      - MODEL_PATH=${MODEL_PATH}
+      - STANDARD_EVAL_DATA_PATH=${STANDARD_EVAL_DATA_PATH}
+      - SLICE_EVAL_DATA_PATH=${SLICE_EVAL_DATA_PATH}
+      - FAILURE_EVAL_DATA_PATH=${FAILURE_EVAL_DATA_PATH}
+      - TEMPLATE_EVAL_DATA_PATH=${TEMPLATE_EVAL_DATA_PATH}
+      - EVAL_OUTPUT_FILE=/results/offline_eval_results.json
+    volumes:
+      - ../../results:/results
+    command: python evaluation_monitor/offline_eval/offline_eval_all.py
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  load-test:
+    build:
+      context: ../..
+      dockerfile: evaluation_monitor/docker/Dockerfile
+    environment:
+      - MODEL_PATH=${MODEL_PATH}
+      - LOAD_TEST_OUTPUT=/results/load_test_results.json
+    volumes:
+      - ../../results:/results
+    command: python evaluation_monitor/load_test/load_test.py
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  online-eval:
+    build:
+      context: ../..
+      dockerfile: evaluation_monitor/docker/Dockerfile
+    environment:
+      - FASTAPI_URL=${FASTAPI_URL}
+      - ONLINE_EVAL_DATA_PATH=${ONLINE_EVAL_DATA_PATH}
+    volumes:
+      - ../../results:/results
+    command: python evaluation_monitor/online_eval/simulate_traffic.py
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
