@@ -105,7 +105,7 @@ if __name__ == "__main__":
         model.gradient_checkpointing_enable()
 
         # 加载 & 预处理数据
-        raw_ds = load_dataset("model_training/qa_from_commits_formatted.json")
+        raw_ds = load_dataset("qa_from_commits_formatted.json")
         processor = LlamaQAPreprocessor(tokenizer, max_length=256)
         processed_ds = raw_ds.map(
             processor,
