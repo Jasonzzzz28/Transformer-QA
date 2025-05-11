@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 import os
 import json
 import subprocess
+
 import mlflow
 import torch
 from datasets import Dataset as HFDataset
@@ -10,6 +12,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
+
 
 # —— 1. 加载原始 JSON 数据 —— #
 def load_dataset(file_path: str) -> HFDataset:
@@ -24,6 +27,7 @@ def load_dataset(file_path: str) -> HFDataset:
         "context":  [item["context"]  for item in raw],
         "answer":   [item["answer"]   for item in raw],
     })
+
 
 # —— 2. 定义 Llama 专用的 Preprocessor —— #
 class LlamaQAPreprocessor:
@@ -52,7 +56,8 @@ class LlamaQAPreprocessor:
             labels_batch.append(labels)
         return {"input_ids": input_ids_batch, "attention_mask": attention_mask_batch, "labels": labels_batch}
 
-# —— 3. 设备选择 —— #
+
+# —— 3. 设备选择 & 环境配置 —— #
 def setup_device():
     if torch.backends.mps.is_available():
         torch.mps.set_per_process_memory_fraction(0.9)
@@ -62,10 +67,13 @@ def setup_device():
     else:
         return "cpu"
 
+
 if __name__ == "__main__":
-    # 减少显存碎片化
+    # 防止显存碎片化
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
     os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.60:8000"
+
+    # MLflow 实验设置
     mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct")
     try:
         mlflow.end_run()
@@ -86,25 +94,30 @@ if __name__ == "__main__":
         device = setup_device()
         print(f"Using device: {device}")
 
-        # 模型 & Tokenizer 初始化
+        # —— 4. 模型 & Tokenizer 初始化（启用 CPU Offload） —— #
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             use_auth_token=True,
-            padding_side="right"
+            padding_side="right",
         )
-        # AMD GPU 上使用 bfloat16
+
+        # 根据 device 决定 dtype
         dtype = torch.bfloat16 if device == "cuda" else torch.float32
+
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
-            device_map={"": device},
+            device_map="auto",               # 自动把部分层放到 GPU / CPU
+            offload_folder="offload",        # CPU offload 存放目录
+            offload_state_dict=True,         # 优化器状态、梯度等 offload 到 CPU
             use_auth_token=True,
         )
-        # 启用梯度检查点以节省显存
+        # 关闭 use_cache 以兼容 gradient checkpointing 并节省显存
+        model.config.use_cache = False
         model.gradient_checkpointing_enable()
 
-        # 加载 & 预处理数据
+        # —— 5. 加载 & 预处理数据 —— #
         raw_ds = load_dataset("qa_from_commits_formatted.json")
         processor = LlamaQAPreprocessor(tokenizer, max_length=256)
         processed_ds = raw_ds.map(
@@ -116,7 +129,7 @@ if __name__ == "__main__":
         )
         processed_ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
 
-        # 训练参数
+        # —— 6. 训练参数 —— #
         training_args = TrainingArguments(
             output_dir="/mnt/object/data/llama3_qa_model",
             per_device_train_batch_size=1,
@@ -135,9 +148,10 @@ if __name__ == "__main__":
             remove_unused_columns=False,
             dataloader_drop_last=True,
             push_to_hub=False,
+            deepspeed=None,  # 若后续需要 ZeRO，可填写配置文件路径
         )
 
-        # 记录超参数
+        # 记录超参数到 MLflow
         mlflow.log_params({
             "model": model_name,
             "batch_size": training_args.per_device_train_batch_size,
@@ -146,7 +160,7 @@ if __name__ == "__main__":
             "device": device,
         })
 
-        # 启动训练
+        # —— 7. 训练 —— #
         trainer = Trainer(
             model=model,
             args=training_args,
@@ -156,7 +170,7 @@ if __name__ == "__main__":
         print("开始训练…")
         trainer.train()
 
-        # 保存 & 上报模型
+        # —— 8. 保存 & 上报模型 —— #
         trainer.save_model(training_args.output_dir)
         mlflow.transformers.log_model(
             transformers_model={"model": model, "tokenizer": tokenizer},
