@@ -10,7 +10,7 @@ from transformers import (
     AutoTokenizer,
     Trainer,
     TrainingArguments,
-    Adafactor
+    BitsAndBytesConfig,
 )
 
 # —— 1. 加载原始 JSON 数据 —— #
@@ -25,7 +25,7 @@ def load_dataset(file_path: str) -> HFDataset:
 
 # —— 2. 定义 Preprocessor —— #
 class LlamaQAPreprocessor:
-    def __init__(self, tokenizer, max_length=192):  # ↓ max_length 减小
+    def __init__(self, tokenizer, max_length=128):  # —↓ 再减 max_length
         self.tokenizer = tokenizer
         self.max_length = max_length
         if tokenizer.pad_token_id is None:
@@ -61,17 +61,18 @@ def setup_device():
         return "cpu"
 
 if __name__ == "__main__":
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
+    # 防止显存碎片化
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64,garbage_collection_threshold:0.6"
     os.environ["MLFLOW_TRACKING_URI"] = "http://129.114.108.60:8000"
 
-    mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct")
+    mlflow.set_experiment("Commit QA Training - Llama3.1-Instruct-4bit")
     try:
         mlflow.end_run()
     except:
         pass
 
     with mlflow.start_run(log_system_metrics=True):
-        # 记录 GPU 信息
+        # —— 4. 记录 GPU/CPU 信息 —— #
         gpu_info = None
         for cmd in ["nvidia-smi", "rocm-smi -v"]:
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
@@ -80,11 +81,12 @@ if __name__ == "__main__":
                 break
         mlflow.log_text(gpu_info or "No GPU found.", "gpu-info.txt")
 
-        # 设备选择
+        # 设备 & dtype
         device = setup_device()
-        print(f"Using device: {device}")
+        dtype = torch.bfloat16 if device == "cuda" else torch.float32
+        print(f"Using device: {device}, dtype: {dtype}")
 
-        # —— 4. 加载模型 & Tokenizer —— #
+        # —— 5. 初始化 Tokenizer & 量化配置 —— #
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
@@ -92,21 +94,27 @@ if __name__ == "__main__":
             padding_side="right",
         )
 
-        dtype = torch.bfloat16 if device == "cuda" else torch.float32
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=dtype,
+        )
+
+        # —— 6. 量化加载模型 —— #
         model = LlamaForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=dtype,
+            quantization_config=bnb_config,
             device_map="auto",
-            offload_state_dict=True,
-            offload_folder="offload",
+            torch_dtype=dtype,
             use_auth_token=True,
         )
         model.config.use_cache = False
         model.gradient_checkpointing_enable()
 
-        # —— 5. 加载 & 预处理数据 —— #
+        # —— 7. 准备数据集 —— #
         raw_ds = load_dataset("qa_from_commits_formatted.json")
-        processor = LlamaQAPreprocessor(tokenizer, max_length=192)
+        processor = LlamaQAPreprocessor(tokenizer, max_length=128)
         processed_ds = raw_ds.map(
             processor,
             batched=True,
@@ -116,16 +124,17 @@ if __name__ == "__main__":
         )
         processed_ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
 
-        # —— 6. 设置训练参数 —— #
+        # —— 8. 训练参数 —— #
         training_args = TrainingArguments(
-            output_dir="/mnt/object/data/llama3_qa_model",
+            output_dir="/mnt/object/data/llama3_qa_4bit",
             per_device_train_batch_size=1,
-            gradient_accumulation_steps=4,  # ↓ 更小步数
+            gradient_accumulation_steps=2,  # —↓ 更少的累积步数
             num_train_epochs=3,
             learning_rate=2e-5,
-            optim="adafactor",              # ↓ 更节省显存
             bf16=True,
+            fp16=False,
             gradient_checkpointing=True,
+            optim="adamw_torch",
             logging_steps=100,
             save_steps=500,
             report_to="mlflow",
@@ -135,37 +144,31 @@ if __name__ == "__main__":
             dataloader_drop_last=True,
         )
 
-        # 记录超参数
         mlflow.log_params({
             "model": model_name,
             "batch_size": training_args.per_device_train_batch_size,
             "grad_accumulation": training_args.gradient_accumulation_steps,
             "learning_rate": training_args.learning_rate,
             "device": device,
+            "quant": "4bit_nf4",
+            "max_length": 128,
         })
 
-        # —— 7. 开始训练 —— #
+        # —— 9. 开始训练 —— #
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=processed_ds,
             tokenizer=tokenizer,
         )
-        print("开始训练…")
+        print("开始训练（4-bit 量化）…")
+        trainer.train()
 
-        try:
-            trainer.train()
-        except RuntimeError as e:
-            print(f"训练过程中发生错误: {e}")
-            torch.cuda.empty_cache()
-            raise
-
-        # —— 8. 保存模型 —— #
+        # —— 10. 保存 & 上报模型 —— #
         trainer.save_model(training_args.output_dir)
         mlflow.transformers.log_model(
             transformers_model={"model": model, "tokenizer": tokenizer},
-            artifact_path="commit_qa_llama3_model",
+            artifact_path="commit_qa_llama3_model_4bit",
             task="text-generation",
         )
-        print("训练完成，模型已保存。")
-
+        print("训练完成，量化模型已保存。")
