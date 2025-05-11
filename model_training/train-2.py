@@ -5,7 +5,7 @@ import subprocess
 
 import torch
 import mlflow
-from datasets import Dataset as HFDataset
+from datasets import Dataset as HFDataset, Features, Sequence, Value
 from transformers import (
     LlamaForCausalLM,
     AutoTokenizer,
@@ -29,7 +29,7 @@ def load_dataset(path: str) -> HFDataset:
         "answer":   [item["answer"]   for item in data],
     })
 
-# —— 文本预处理器 —— #
+# —— 预处理器 —— #
 class Preprocessor:
     def __init__(self, tokenizer, max_length=128):
         self.tokenizer  = tokenizer
@@ -44,38 +44,43 @@ class Preprocessor:
                                           add_special_tokens=False)["input_ids"]
             response_ids = self.tokenizer(a + self.tokenizer.eos_token,
                                           add_special_tokens=False)["input_ids"]
-            ids    = (prompt_ids + response_ids)[:self.max_length]
-            labs   = ([-100]*len(prompt_ids) + response_ids)[:self.max_length]
+            ids    = (prompt_ids + response_ids)[: self.max_length]
+            labs   = ([-100] * len(prompt_ids) + response_ids)[: self.max_length]
             padlen = self.max_length - len(ids)
             ids    += [self.tokenizer.pad_token_id] * padlen
             labs   += [-100] * padlen
-            mask   = [1]*len(ids[:-padlen]) + [0]*padlen
+            mask   = [1] * (self.max_length - padlen) + [0] * padlen
+
             input_ids.append(ids)
             attention_mask.append(mask)
             labels.append(labs)
+
         return {"input_ids": input_ids,
                 "attention_mask": attention_mask,
                 "labels": labels}
 
 def main():
-    # —— 开始 MLflow run —— #
+    # —— MLflow run —— #
     mlflow.set_experiment("Commit QA Training")
     with mlflow.start_run():
-        # —— 记录 GPU 信息 —— #
+        # 记录 GPU 信息
         for cmd in ["nvidia-smi", "rocm-smi -v"]:
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             if r.returncode == 0:
                 mlflow.log_text(r.stdout, "gpu-info.txt")
                 break
 
-        # —— 设备 & dtype —— #
-        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+        # 设备 & dtype
+        device = "cuda" if torch.cuda.is_available() else \
+                 "mps"  if torch.backends.mps.is_available()  else "cpu"
         dtype  = torch.bfloat16 if device == "cuda" else torch.float32
         print(f"Using device={device}, dtype={dtype}")
 
-        # —— Tokenizer & 4-bit 量化配置 —— #
+        # Tokenizer & 4-bit 量化
         model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-        tokenizer  = AutoTokenizer.from_pretrained(model_name, use_auth_token=True, padding_side="right")
+        tokenizer  = AutoTokenizer.from_pretrained(
+            model_name, use_auth_token=True, padding_side="right"
+        )
         bnb_cfg = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
@@ -83,7 +88,7 @@ def main():
             bnb_4bit_compute_dtype=dtype,
         )
 
-        # —— 量化加载模型 —— #
+        # 量化加载模型
         model = LlamaForCausalLM.from_pretrained(
             model_name,
             quantization_config=bnb_cfg,
@@ -94,25 +99,41 @@ def main():
         model.config.use_cache = False
         model.gradient_checkpointing_enable()
 
-        # —— 注入 LoRA adapter —— #
+        # 注入 LoRA
         lora_cfg = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
             inference_mode=False,
             r=16,
             lora_alpha=32,
             lora_dropout=0.05,
-            target_modules=["q_proj","k_proj","v_proj","o_proj"],
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         )
         model = get_peft_model(model, lora_cfg)
         model.print_trainable_parameters()
 
-        # —— 加载并预处理数据 —— #
+        # 加载数据集
         ds = load_dataset("qa_from_commits_formatted.json")
-        proc = Preprocessor(tokenizer, max_length=128)
-        ds  = ds.map(proc, batched=True, batch_size=4, remove_columns=["question","context","answer"], num_proc=4)
-        ds.set_format(type="torch", columns=["input_ids","attention_mask","labels"])
 
-        # —— 训练配置 —— #
+        # 定义 map 时的 schema
+        feature_schema = Features({
+            "input_ids":       Sequence(feature=Value("int64"), length=128),
+            "attention_mask":  Sequence(feature=Value("int64"), length=128),
+            "labels":          Sequence(feature=Value("int64"), length=128),
+        })
+
+        # 预处理并指定 schema
+        proc = Preprocessor(tokenizer, max_length=128)
+        ds   = ds.map(
+            proc,
+            batched=True,
+            batch_size=4,
+            remove_columns=["question", "context", "answer"],
+            features=feature_schema,
+            num_proc=1,
+        )
+        ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
+
+        # 训练参数
         args = TrainingArguments(
             output_dir="/mnt/object/data/llama3_qa_4bit_lora",
             per_device_train_batch_size=1,
@@ -129,21 +150,21 @@ def main():
             dataloader_drop_last=True,
         )
         mlflow.log_params({
-            "model": model_name,
+            "model":      model_name,
             "max_length": 128,
             "batch_size": args.per_device_train_batch_size,
-            "accum_steps": args.gradient_accumulation_steps,
-            "lr": args.learning_rate,
-            "lora_r": lora_cfg.r,
+            "accum_steps":args.gradient_accumulation_steps,
+            "lr":         args.learning_rate,
+            "lora_r":     lora_cfg.r,
         })
 
-        # —— 启动训练 —— #
+        # 启动训练
         trainer = Trainer(model=model, args=args, train_dataset=ds, tokenizer=tokenizer)
         trainer.train()
 
-        # —— 保存模型 —— #
+        # 保存
         model.save_pretrained(args.output_dir)
-        print(f"Model and LoRA adapter saved at {args.output_dir}")
+        print(f"Saved to {args.output_dir}")
 
 if __name__ == "__main__":
     main()
