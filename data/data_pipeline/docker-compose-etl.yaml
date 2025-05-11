@@ -1,0 +1,77 @@
+name: transformer-qa-etl
+
+volumes:
+  transformer_qa_data:
+
+services:
+  extract-data:
+    container_name: etl_extract_data
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: root
+    volumes:
+      - transformer_qa_data:/data
+      - /home/cc/data_pipeline/Transformer-QA/data/data_pipeline:/data/data_pipeline
+    working_dir: /data/data_pipeline
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        # echo "Cloning git repository..."
+        # git clone https://github.com/huggingface/transformers.git
+
+        echo "Extracting data..."
+        python extract_data.py
+
+        echo "Listing contents of /data/offline_data after extract stage:"
+        ls -l /data/offline_data
+
+  transform-data:
+    container_name: etl_transform_data
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - transformer_qa_data:/data
+      - /home/cc/data_pipeline/Transformer-QA/data/data_pipeline:/data/data_pipeline
+    working_dir: /data/data_pipeline
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+
+        echo "Transforming data..."
+        python transform_data.py
+
+        echo "Listing contents of /data/offline_data after transform stage:"
+        ls -l /data/offline_data
+
+  load-data:
+    container_name: etl_load_data
+    image: rclone/rclone:latest
+    volumes:
+      - transformer_qa_data:/data
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+        echo "Cleaning up existing contents of container..."
+        rclone delete chi_tacc:$RCLONE_CONTAINER --rmdirs || true
+
+        rclone copy /data/offline_data chi_tacc:$RCLONE_CONTAINER \
+        --progress \
+        --transfers=32 \
+        --checkers=16 \
+        --multi-thread-streams=4 \
+        --fast-list
+
+        echo "Listing directories in container after load stage:"
+        rclone lsd chi_tacc:$RCLONE_CONTAINER
