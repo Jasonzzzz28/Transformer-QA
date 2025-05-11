@@ -37,18 +37,18 @@ class LlamaQAPreprocessor:
         input_ids_batch, attention_mask_batch, labels_batch = [], [], []
         for q, c, a in zip(examples["question"], examples["context"], examples["answer"]):
             prompt = f"### 问题：{q}\n### 上下文：{c}\n### 回答："
-            prompt_ids = self.tokenizer(prompt, add_special_tokens=False)["input_ids"]
+            prompt_ids   = self.tokenizer(prompt, add_special_tokens=False)["input_ids"]
             response_ids = self.tokenizer(a + self.tokenizer.eos_token, add_special_tokens=False)["input_ids"]
-            ids = (prompt_ids + response_ids)[: self.max_length]
+            ids    = (prompt_ids + response_ids)[: self.max_length]
             labels = ([-100] * len(prompt_ids) + response_ids)[: self.max_length]
-            attention_mask = [1] * len(ids)
+            mask   = [1] * len(ids)
             pad_len = self.max_length - len(ids)
             if pad_len > 0:
-                ids += [self.tokenizer.pad_token_id] * pad_len
-                attention_mask += [0] * pad_len
+                ids   += [self.tokenizer.pad_token_id] * pad_len
+                mask  += [0] * pad_len
                 labels += [-100] * pad_len
             input_ids_batch.append(ids)
-            attention_mask_batch.append(attention_mask)
+            attention_mask_batch.append(mask)
             labels_batch.append(labels)
         return {"input_ids": input_ids_batch, "attention_mask": attention_mask_batch, "labels": labels_batch}
 
@@ -64,8 +64,8 @@ def setup_device():
 
 if __name__ == "__main__":
     # 防止显存碎片化
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"]            = "max_split_size_mb:64,garbage_collection_threshold:0.6"
-    os.environ["MLFLOW_TRACKING_URI"]                 = "http://129.114.108.60:8000"
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64,garbage_collection_threshold:0.6"
+    os.environ["MLFLOW_TRACKING_URI"]        = "http://129.114.108.60:8000"
 
     mlflow.set_experiment("Commit QA Training - Llama3.1-8B-4bit-LoRA")
     with mlflow.start_run(log_system_metrics=True):
@@ -122,8 +122,8 @@ if __name__ == "__main__":
         model.print_trainable_parameters()
 
         # —— 7. 准备数据集 —— #
-        raw_ds      = load_dataset("qa_from_commits_formatted.json")
-        processor   = LlamaQAPreprocessor(tokenizer, max_length=128)
+        raw_ds       = load_dataset("qa_from_commits_formatted.json")
+        processor    = LlamaQAPreprocessor(tokenizer, max_length=128)
         processed_ds = raw_ds.map(
             processor,
             batched=True,
@@ -153,24 +153,23 @@ if __name__ == "__main__":
 
         # 一次性记录所有超参，避免重复修改
         mlflow.log_params({
-            "model":      model_name,
-            "quant":      "4bit_nf4",
-            "lora_r":     peft_config.r,
-            "lora_alpha": peft_config.lora_alpha,
+            "model":        model_name,
+            "quant":        "4bit_nf4",
+            "lora_r":       peft_config.r,
+            "lora_alpha":   peft_config.lora_alpha,
             "lora_dropout": peft_config.lora_dropout,
-            "max_length": 128,
-            "batch_size": training_args.per_device_train_batch_size,
-            "accum_steps": training_args.gradient_accumulation_steps,
-            "lr":          training_args.learning_rate,
+            "max_length":   128,
+            "batch_size":   training_args.per_device_train_batch_size,
+            "accum_steps":  training_args.gradient_accumulation_steps,
+            "lr":           training_args.learning_rate,
         })
 
-        # —— 9. Trainer & 训练 —— #
+        # —— 9. Trainer & 启动训练 —— #
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=processed_ds,
-            tokenizer=tokenizer,
-            label_names=["labels"],       # ← **关键**：明确告诉 Trainer 用哪个字段做标签
+            tokenizer=tokenizer
         )
         print(">>> 开始训练（4-bit + LoRA）…")
         trainer.train()
