@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
         # 训练参数
         training_args = TrainingArguments(
-            output_dir="/mnt/data/llama3_qa_model",
+            output_dir="/mnt/object/data/llama3_qa_model",
             per_device_train_batch_size=1,
             gradient_accumulation_steps=8,
             num_train_epochs=3,
