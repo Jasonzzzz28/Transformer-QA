@@ -176,7 +176,7 @@ Label Noise Proliferation: Auto-generated QA pairs becoming misaligned with grou
 
 ***Environment Setup For Model Serving, Evaluation and Monitoring***
 
-The following files are essential for setting up and running the entire application:
+Added the following files for setting up and running the entire serving and evaluation system:
 
 - **How To Run The Serving, Evaluation and Monitoring System**
   ```bash
