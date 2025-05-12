@@ -122,7 +122,7 @@ Evaluation	T4	1	FP16 Quantization
 
 
 III. Training Infrastructure
-![Uploading 7851747059623_.pic.jpg…]()
+![image](model_training/7851747059623_.pic.jpg)
 
   3.1 MLFlow Experiment Tracking
 
