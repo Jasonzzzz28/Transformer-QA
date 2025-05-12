@@ -397,6 +397,7 @@ To provide transparency and insight into the internal QA dataset and system perf
 - Use Grafana with sqlite plugin to build the interactive data dashboard. User can use SQL query to interact with the dashboard.
 A live demo can be seen at [http://129.114.26.254:3000](http://129.114.26.254:3000)
 <img width="1440" alt="截屏2025-05-11 19 54 05" src="https://github.com/user-attachments/assets/eb7ddab6-85d1-4e6a-a0f2-f1c1a0bebe4d" />
+
 Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/tree/main/data/data_dashboard).
 
 ```bash
