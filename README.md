@@ -89,6 +89,36 @@ Model Choice
 Base Model: meta-llama/Meta-Llama-3.1-8B-Instruct, a high‐capacity instruction‐tuned causal LM well‐suited to free‐form text generation.
 LoRA Adapters: to drastically reduce fine‐tuning costs (only ~0.17% of parameters trained) and enable rapid re‐training on small incremental data.
 4-bit Quantization: using bitsandbytes to fit the 8B‐parameter model onto a single 24 GiB GPU without sacrificing throughput.
+
+Envirnoment Set up:
+1-docker-compose-data.yaml
+    This Compose file is a “data initialization” stack that runs a one-off container to populate a Docker volume with your raw           dataset (e.g. the qa_from_commits_formatted.json file). Typical contents:
+    Service: often called init-data
+    Image: a lightweight Linux or Alpine image
+    Volume mounts:
+    Mount your local data directory (e.g. ./model_training) into the container
+    Mount a named volume (e.g. transformer-qa) where data will be copied
+    Command: a cp or data‐loading script that copies files from the source mount into the named volume
+    Restart policy: usually on-failure or none so it only runs once
+
+2-Dockerfile.jupyter-torch-mlflow-cuda
+    This Dockerfile builds a custom Jupyter environment with CUDA, PyTorch, and MLflow support. Key steps:
+    Base image: NVIDIA’s CUDA runtime (e.g. nvidia/cuda:12.1.0-base-ubuntu22.04)
+    System dependencies: installs Python, Jupyter Lab, git, and any OS packages needed for GPU drivers
+    Python environment: installs PyTorch with CUDA via pip or conda, plus MLflow, Hugging Face Transformers, Datasets, and notebook     extensions
+    Workspace setup: creates a /home/jovyan/work directory and sets it as the Jupyter working directory
+    Entrypoint: configures CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
+    Ports: exposes 8888 for Jupyter
+    
+3-docker-compose-mlflow.yaml
+    This Compose file launches your MLflow tracking server (and optionally its backing services). Typical services:
+    mlflow
+    Runs mlflow server --backend-store-uri postgresql://… --default-artifact-root s3://… --host 0.0.0.0 --port 5000
+    Environment variables:
+    MLFLOW_TRACKING_URI=http://mlflow:5000
+    Database URL, credentials
+    Volume mounts:
+    Local directory for artifact storage 
 I. Training Pipeline Architecture
 
     graph TD
