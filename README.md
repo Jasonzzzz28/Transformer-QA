@@ -64,7 +64,28 @@ We propose a machine learning system that augments software engineering workflow
 <!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, and which optional "difficulty" points you are attempting. -->
 
 
+Problem Definition
+We frame commit-based question–answering as a conditional language modeling task: given a user’s natural-language question plus a JSON‐encoded commit context, the model must generate the appropriate answer text.
 
+Inputs
+Question (str)
+e.g. "How does commit e1f379b alter the existing implementation?"
+Context (str)
+
+A stringified Python dict with keys like commit_hash, author, date, message.
+
+Output (Target Variable)
+The answer string, tokenized and appended with an EOS token.
+During training, we maximize the likelihood of the ground‐truth answer continuation given the prompt.
+
+Customer Use Case
+Interactive Chatbot: engineers query “what changed in this commit?” and immediately get a human‐readable summary.
+
+
+Model Choice
+Base Model: meta-llama/Meta-Llama-3.1-8B-Instruct, a high‐capacity instruction‐tuned causal LM well‐suited to free‐form text generation.
+LoRA Adapters: to drastically reduce fine‐tuning costs (only ~0.17% of parameters trained) and enable rapid re‐training on small incremental data.
+4-bit Quantization: using bitsandbytes to fit the 8B‐parameter model onto a single 24 GiB GPU without sacrificing throughput.
 I. Training Pipeline Architecture
 
     graph TD
@@ -81,7 +102,7 @@ II. Core Implementation
 
       python"
         model = AutoModelForCausalLM.from_pretrained(
-            "codeQwen/CodeQwen2.5-14B-hf",  # Optimized for code understanding
+            "meta-llama/Meta-Llama-3.1-8B-Instruct",  # Optimized for code understanding
             trust_remote_code=True,
             attn_implementation="flash_attention_2"  # Memory optimization
         )"
@@ -104,7 +125,8 @@ III. Training Infrastructure
   3.1 MLFlow Experiment Tracking
 
         with mlflow.start_run():
-    mlflow.log_params({
+    mlflow.log_params({![7851747059623_ pic](https://github.com/user-attachments/assets/4d24bba1-8a8e-47a6-aacc-2d69e3b82370)
+
         "max_seq_length": 4096,
         "grad_accum_steps": 4
     })
@@ -113,6 +135,7 @@ III. Training Infrastructure
         "model",
         registered_model_name="code_qwen_qa"
     )
+
     
   3.2 Ray Cluster Configuration
 
