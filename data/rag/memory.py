@@ -31,7 +31,7 @@ class Base_Memory_3():
         # Initialize vector database
         self.vector_db = self.init_vector_db()
         self.memory_chunks: List[MemoryChunk] = []
-        self.load_path = "/root/autodl-tmp/memory"
+        self.load_path = "/root/autodl-tmp/QA_memory"
         if not os.path.exists(self.load_path):
             os.makedirs(self.load_path, exist_ok=True)
 
@@ -96,10 +96,10 @@ class Base_Memory_3():
                 chunk = pickle.load(f)
             self.memory_chunks.append(chunk)
 
-    def rag_preprocess(self, contexts: List[str]):
+    def rag_preprocess(self, contexts: List[str], top_k: int):
         for i in range(len(contexts)):
-            _, indices = self.retrieve_memory(contexts[i], 5)
-            self._load_memory_chunk_from_disk(self.load_path, indices[0], update_disk=False, use_cache=False, encode=False)
+            _, indices = self.retrieve_memory(contexts[i], top_k)
+            self._load_memory_chunk_from_disk(self.load_path, indices[0])
             reference_text = "\n".join([self.memory_chunks[j].context for j in range(len(self.memory_chunks))])
         return reference_text
             
