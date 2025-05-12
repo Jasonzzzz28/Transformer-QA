@@ -127,7 +127,7 @@ III. Training Infrastructure
   3.1 MLFlow Experiment Tracking
 
         with mlflow.start_run():
-    mlflow.log_params({![7851747059623_ pic](https://github.com/user-attachments/assets/4d24bba1-8a8e-47a6-aacc-2d69e3b82370)
+    mlflow.log_params({(https://github.com/user-attachments/assets/4d24bba1-8a8e-47a6-aacc-2d69e3b82370)
 
         "max_seq_length": 4096,
         "grad_accum_steps": 4
@@ -139,7 +139,7 @@ III. Training Infrastructure
     )
 
     
-  3.2 Ray Cluster Configuration
+
 
 
 IV. Cross-Team Integration
