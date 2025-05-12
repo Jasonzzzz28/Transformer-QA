@@ -75,14 +75,17 @@ Inputs
 A stringified Python dict with keys like commit_hash, author, date, message.
 
 Output (Target Variable)
+
 The answer string, tokenized and appended with an EOS token.
 During training, we maximize the likelihood of the ground‐truth answer continuation given the prompt.
 
 Customer Use Case
+
 Interactive Chatbot: engineers query “what changed in this commit?” and immediately get a human‐readable summary.
 
 
 Model Choice
+
 Base Model: meta-llama/Meta-Llama-3.1-8B-Instruct, a high‐capacity instruction‐tuned causal LM well‐suited to free‐form text generation.
 LoRA Adapters: to drastically reduce fine‐tuning costs (only ~0.17% of parameters trained) and enable rapid re‐training on small incremental data.
 4-bit Quantization: using bitsandbytes to fit the 8B‐parameter model onto a single 24 GiB GPU without sacrificing throughput.
