@@ -64,6 +64,15 @@ def format_source_code(data):
         formatted_data.append(formatted_item)
     return formatted_data
 
+def data_split(source_code_qa, huggingface_qa, qa_from_commits):
+    train_data = source_code_qa + qa_from_commits
+    random.shuffle(train_data)
+    evaluation_data = huggingface_qa
+    with open("/data/offline_data/train_data.json", "w", encoding="utf-8") as f:
+        json.dump(train_data, f, indent=4, ensure_ascii=False)
+    with open("/data/offline_data/evaluation_data.json", "w", encoding="utf-8") as f:
+        json.dump(evaluation_data, f, indent=4, ensure_ascii=False)
+
 if __name__ == "__main__":
     # Transform source code data
     with open("/data/offline_data/source_code_qa.json", "r", encoding="utf-8") as f:
@@ -95,3 +104,28 @@ if __name__ == "__main__":
         })
     with open("/data/offline_data/qa_from_commits_formatted.json", "w", encoding="utf-8") as f:
         json.dump(qa_from_commits_formatted, f, indent=4, ensure_ascii=False)
+    
+    # Transform stackoverflow data
+    with open('/data/offline_data/huggingface_qa.json', 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    formatted_data = []
+    for item in data:
+        for i in range(len(item['answers'])):
+            formatted_data.append({
+                "question": item['title'] + "\n" + item['body'],
+                "answer": item['answers'][i],
+                "source": "stackoverflow",
+                "metadata": {
+                "question_id": item['question_id'],
+                "link": item['link']
+            }
+        })
+
+    with open('/data/offline_data/huggingface_qa_formatted.json', 'w', encoding='utf-8') as f:
+        json.dump(formatted_data, f, indent=2, ensure_ascii=False)
+
+    print("✅ Done! Saved 100 Q&A items to huggingface_qa_formatted.json")
+
+    # Data split
+    data_split(formatted_data, formatted_data, formatted_data)

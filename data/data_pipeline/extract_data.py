@@ -241,19 +241,19 @@ def extract_commit_data(repo_path):
 
 
 if __name__ == "__main__":
-    # # Extract source code data
-    # directory = "transformers"
-    # if not os.path.exists("/data/offline_data"):
-    #     os.makedirs("/data/offline_data")
-    # qa_data = process_directory(directory)
+    # Extract source code data
+    directory = "transformers"
+    if not os.path.exists("/data/offline_data"):
+        os.makedirs("/data/offline_data")
+    qa_data = process_directory(directory)
 
-    # with open("/data/offline_data/source_code_qa.json", "w", encoding="utf-8") as f:
-    #     json.dump(qa_data, f, indent=4, ensure_ascii=False)
+    with open("/data/offline_data/source_code_qa.json", "w", encoding="utf-8") as f:
+        json.dump(qa_data, f, indent=4, ensure_ascii=False)
 
-    # print(f"Extracted {len(qa_data)} QA pairs.")
+    print(f"Extracted {len(qa_data)} QA pairs.")
 
-    # # Extract commit data
-    # extract_commit_data(directory)
+    # Extract commit data
+    extract_commit_data(directory)
 
     # Extract stackoverflow data for online data
     questions = get_questions_with_answers()
