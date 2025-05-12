@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  # flask-api:
+  #   build:
+  #     context: .
+  #     dockerfile: flask_api/Dockerfile
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./data/train_data.json:/data/train_data.json
+  #     - ./data/evaluation_data.json:/data/evaluation_data.json
+  init-db:
+    build:
+      context: .
+      dockerfile: data/Dockerfile
+    volumes:
+      - ./data:/data
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        # echo "initialize database..."
+        python data/app.py
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=frser-sqlite-datasource
+    volumes:
+      - ./data:/data
+      - grafana-storage:/var/lib/grafana
+
+volumes:
+  grafana-storage:
