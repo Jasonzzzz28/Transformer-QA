@@ -68,7 +68,9 @@ Problem Definition
 We frame commit-based question–answering as a conditional language modeling task: given a user’s natural-language question plus a JSON‐encoded commit context, the model must generate the appropriate answer text.
 
 Inputs
-![image](model_training/7861747060471__.pic.jpg)
+
+![image1](model_training/7861747060471_.pic.jpg)
+
 
 A stringified Python dict with keys like commit_hash, author, date, message.
 
