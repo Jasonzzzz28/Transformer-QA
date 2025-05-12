@@ -331,7 +331,7 @@ We will gather feedback about the quality of the model's predictions through:
 
 **Persistent storage**
 
-Following the example of Lab 8, we will provision persistent storage on Chameleon, which may be attached to and detached from our infrastructure. This will store all materials that should persist for the duration of the project, but are not tracked in Git: model training artifacts, test artifacts, models, container images, data.
+Following the example of Lab 8, I provision persistent storage on Chameleon, which may be attached to and detached from our infrastructure. This will store all materials that should persist for the duration of the project, but are not tracked in Git: model training artifacts, test artifacts, models, container images, data.
 
 **Offline data**
 
@@ -343,25 +343,11 @@ The dataset will be built by parsing and processing multiple information sources
 
 - Git commit history: Commit messages and associated diffs will be analyzed to produce "why" and "what changed" style QA pairs.
 
-- GitHub issues and discussions: I will extract the issue title and comments to reconstruct problem-resolution dialogues, turning them into user-centered QA pairs.
-
-- Pull requests and code reviews: Review comments and PR descriptions will be mined for code reasoning and decision-making insights.
-
-- Documentation files: Official documentation and model cards including README of the github repository and the [documentation from huggingface website](https://huggingface.co/docs/transformers/en/index) will serve as another source of well-structured, factual QA content.
+- Real QA data from [stackoverflow](https://stackoverflow.com/questions/tagged/huggingface)
 
 The QA dataset will be generated in the following ways: 
 - Rule-based automatic generation (e.g., "What does this function do?", "Why was this line changed?").
 - LLM generation by strict source-alignment prompts. All QA examples will include metadata linking back to their origin (e.g., file path, commit hash, issue number) to maintain traceability.
-  - Using self-instruct to generate questions given each context.
-  - Using proper prompt to guide the LLM to generate answer given the question and the context.
-- Mannually design data for evaluation purpose
-- We will also mix some high quality general QA data as our training data(won't be used in evaluation)
-
-To ensure the data quality and reduce hallucinations:
-- Most answer should be the original text from the knowledge base (easy to check correctness)
-- We will also generate some QA data that will needs some summarization and reasoning ability. The correctness of these data should be validated first before being used in training.
-- For LLM generated question, we will use [self-instruct](https://arxiv.org/abs/2212.10560) to make sure the high diversity of the questions.
-- For LLM generated answer, we will use another answer validation model to ensure answer correctness.
 
 Example structure of the data:
 ```python
@@ -374,37 +360,15 @@ Example structure of the data:
 }
 ```
 
-The resulting dataset will be indexed using dense retrieval techniques and used to power a RAG-based LLM capable of answering technical questions about the Transformers codebase and its development history.
+The offline data can be seen at [https://github.com/Jasonzzzz28/Transformer-QA/tree/main/data/offline_data](https://github.com/Jasonzzzz28/Transformer-QA/tree/main/data/offline_data) as well as in the object store. 
 
 **Data pipelines**
 
-Our data pipeline is designed to support continuous learning and adaptation of a RAG-based QA system built on the HuggingFace Transformers repository. It consists of two main components: upstream monitoring and data extraction, and downstream user feedback handling.
+Our data pipeline provides three services:
 
-***Upstream: Continuous Monitoring and QA Pair Generation***
-
-We implement an automated monitoring system that continuously tracks updates in the Transformers GitHub repository. The system detects:
-
-- New commits
-
-- Newly closed issues
-
-- Merged pull requests
-
-- Updated documentation
-
-Upon detecting updates, the pipeline automatically extracts the relevant content and start the data generation pipeline. These QA pairs are stored temporarily in a staging buffer. Once a sufficient number of QA pairs are collected, they are added to the main QA dataset. This triggers an automatic retraining or fine-tuning process for the model, ensuring that the system stays up-to-date with the latest changes in the codebase and community discussions.
-
-***Downstream: User Feedback and Iterative Refinement***
-
-On the serving side, we continuously collect user feedback on the generated responses. When a user flags a response as incorrect or unhelpful, the associated QA query is logged along with the model's output and user-provided annotations (if any).
-
-These flagged examples are periodically reviewed through two possible strategies:
-
-Manual correction by domain experts or annotators
-
-Automatic correction using a feedback-aware refinement model (e.g., instruction-following LLMs guided by the original context)
-
-Corrected QA pairs are validated and added back into the dataset. Once enough feedback-corrected examples are accumulated, a new round of retraining is triggered. This enables the model to gradually improve over time by learning from its past mistakes and user interactions.
+- extract-data: Extract data from its source. Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/data_pipeline/extract_data.py)
+- transform-data: Transform source data into QA data and split them into training, evaluation, online and production data. Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/data_pipeline/transform_data.py)
+- load-data: Load the entire offline data into object store.
 
 **Online data**
 
