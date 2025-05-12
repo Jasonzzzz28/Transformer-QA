@@ -331,7 +331,7 @@ We will gather feedback about the quality of the model's predictions through:
 
 **Persistent storage**
 
-Following the example of Lab 8, I provision persistent storage on Chameleon, which may be attached to and detached from our infrastructure. This will store all materials that should persist for the duration of the project, but are not tracked in Git: model training artifacts, test artifacts, models, container images, data.
+Run [notebook](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/provision_data.ipynb) in Chameleon Jupyter environment to provision object storage on Chameleon, which can be attached to and detached from our infrastructure. This will store all materials that should persist for the duration of the project, but are not tracked in Git: model training artifacts, test artifacts, models, container images, data.
 
 **Offline data**
 
@@ -392,7 +392,7 @@ To simulate real-world usage and support real-time inference, we use real world 
 
 **Difficulty points: Interactive data dashboard**
 
-To provide transparency and insight into the internal QA dataset and system performance, I develop an interactive data dashboard:
+To provide transparency and insight into the internal QA dataset and system performance, we develop an interactive data dashboard:
 - Transform QA data(json) into SQL database
 - Use Grafana with sqlite plugin to build the interactive data dashboard. User can use SQL query to interact with the dashboard.
 A live demo can be seen at [http://129.114.26.254:3000](http://129.114.26.254:3000)
