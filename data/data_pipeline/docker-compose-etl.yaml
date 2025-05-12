@@ -42,7 +42,9 @@ services:
       - -c
       - |
         set -e
-
+        echo "Start vllm server..."
+        vllm_server.sh
+        
         echo "Transforming data..."
         python transform_data.py
 
@@ -63,8 +65,6 @@ services:
           echo "ERROR: RCLONE_CONTAINER is not set"
           exit 1
         fi
-        echo "Cleaning up existing contents of container..."
-        rclone delete chi_tacc:$RCLONE_CONTAINER --rmdirs || true
 
         rclone copy /data/offline_data chi_tacc:$RCLONE_CONTAINER \
         --progress \

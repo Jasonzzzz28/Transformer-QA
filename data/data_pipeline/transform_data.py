@@ -67,11 +67,20 @@ def format_source_code(data):
 def data_split(source_code_qa, huggingface_qa, qa_from_commits):
     train_data = source_code_qa + qa_from_commits
     random.shuffle(train_data)
-    evaluation_data = huggingface_qa
+    random.shuffle(huggingface_qa)
+    train_data_count =len(train_data)
+    evaluation_data = train_data[:int(train_data_count*0.1)]
+    train_data = train_data[int(train_data_count*0.1):]
+    production_data = huggingface_qa[:20]
+    online_data = huggingface_qa[20:]
     with open("/data/offline_data/train_data.json", "w", encoding="utf-8") as f:
         json.dump(train_data, f, indent=4, ensure_ascii=False)
     with open("/data/offline_data/evaluation_data.json", "w", encoding="utf-8") as f:
         json.dump(evaluation_data, f, indent=4, ensure_ascii=False)
+    with open("/data/offline_data/production_data.json", "w", encoding="utf-8") as f:
+        json.dump(production_data, f, indent=4, ensure_ascii=False)
+    with open("/data/offline_data/online_data.json", "w", encoding="utf-8") as f:
+        json.dump(online_data, f, indent=4, ensure_ascii=False)
 
 if __name__ == "__main__":
     # Transform source code data
