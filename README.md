@@ -352,11 +352,10 @@ The QA dataset will be generated in the following ways:
 Example structure of the data:
 ```python
 {
-  "id": 0,
-  "source": "source_code",
-  "context": "code name and its docstring",
-  "question": "What does this function do?",
-  "answer": "answer"
+    "question": "How does commit e1f379b alter the existing implementation?",
+    "answer": "Fixing the example in generation strategy doc (#37598)\n\nUpdate generation_strategies.md\n\nThe prompt text shown in the example does not match what is inside the generated output. As the generated output always include the prompt, the correct prompt should be \"Hugging Face is an open-source company\".",
+    "context": "{'commit_hash': 'e1f379bb090390acb62d36b7037cd93950ed322b', 'author': 'Xiaojian Ma', 'date': '2025-04-18T12:50:17-07:00', 'message': 'Fixing the example in generation strategy doc... \".'}",
+    "source": "git_commit"
 }
 ```
 
@@ -381,7 +380,6 @@ Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transf
 bash data/data_pipeline/vllm_server.sh
 docker compose -f data/data_pipeline/docker-compose-etl.yaml run transform-data
 ```
-Load Data
 Load the entire offline data into object store.
 ```bash
 export RCLONE_CONTAINER=object-persist-jc13140
@@ -390,38 +388,21 @@ docker compose -f data/data_pipeline/docker-compose-etl.yaml run load-data
 
 **Online data**
 
-To simulate real-world usage and support real-time inference, I will implement a streaming data pipeline that handles online query data in near real-time.
-
-The pipeline will consist of:
-
-- An online query handler that receives incoming questions (e.g., via a REST API or simulated queue) and sends the queries to the RAG model.
-
-- A monitoring layer to log incoming queries, model responses, and latency metrics for further analysis or retraining triggers.
-
-- A simulation script that continuously sends pseudo-realistic user queries to feed into the system.
-
-For the simulated online data, we will use the mannully design question as the simulated queries.
+To simulate real-world usage and support real-time inference, we use real world question from [huggingface channel of stackoverflow](https://stackoverflow.com/questions/tagged/huggingface) as the online data. These data are divided into [online data](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/online_data/online_data.json) and [product data](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/online_data/production_data.json). Online data will be used for online evaluation as stated in **Canary Online Evaluation** section using the [script](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/evaluation_monitor/online_eval/simulate_traffic.py). Product data will be used to **Close the Feedback Loop**.
 
 **Difficulty points: Interactive data dashboard**
 
-To provide transparency and insight into the internal QA dataset and system performance, I will develop an interactive data dashboard for the team. This dashboard will help track the health, quality, and growth of the dataset over time, as well as monitor the behavior of the deployed QA system.
+To provide transparency and insight into the internal QA dataset and system performance, I develop an interactive data dashboard:
+- Transform QA data(json) into SQL database
+- Use Grafana with sqlite plugin to build the interactive data dashboard. User can use SQL query to interact with the dashboard.
+A live demo can be seen at [http://129.114.26.254:3000](http://129.114.26.254:3000)
+<img width="1440" alt="截屏2025-05-11 19 54 05" src="https://github.com/user-attachments/assets/eb7ddab6-85d1-4e6a-a0f2-f1c1a0bebe4d" />
+Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/tree/main/data/data_dashboard).
 
-The dashboard will include:
-
-Dataset Overview: Total number of QA pairs, categorized by source type (code, issues, commits, documentation, etc.) and time of generation.
-
-Data Quality Metrics: Automatic scores such as LLM confidence, hallucination detection rate, and manual feedback stats (e.g., number of bad responses flagged by users).
-
-Retraining Activity: Visual indicators of retraining cycles, including model versioning, training data volume, and before-after performance metrics.
-
-Online Inference Monitoring: Real-time charts displaying incoming user queries (simulated or real), response latency, error rates, and trending questions.
-
-Interactive Filtering: Team members will be able to filter the data by source, time range, model version, or quality score to perform targeted analysis.
-
-The dashboard will serve as a central control panel for understanding and managing the evolving QA system.
-
-
-
+```bash
+# Run Grafana dashboard on http://129.114.26.254:3000
+docker compose -f data/data_dashboard/docker-compose-dashboard.yml up -d --build
+```
 
 #### Continuous X
 
