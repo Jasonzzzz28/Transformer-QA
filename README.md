@@ -359,7 +359,7 @@ We will gather feedback about the quality of the model's predictions through:
 
 **Persistent storage**
 
-Run [notebook](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/provision_data.ipynb) in Chameleon Jupyter environment to provision object storage on Chameleon, which can be attached to and detached from our infrastructure. This will store all materials that should persist for the duration of the project, but are not tracked in Git: model training artifacts, test artifacts, models, container images, data.
+Run [notebook](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/provision_data.ipynb) in Chameleon Jupyter environment to provision object storage on Chameleon, which can be attached to and detached from our infrastructure. The object store will store offline data for our project.
 
 **Offline data**
 
