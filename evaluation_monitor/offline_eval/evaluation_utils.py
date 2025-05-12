@@ -5,8 +5,13 @@ from datasets import load_dataset
 import evaluate
 from tqdm import tqdm
 import logging
+from data.rag.memory import Base_Memory_3
+from data.rag.retriever import Retriever
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+retrieval_model = Retriever(model_name="/mnt/object/BAAI/bge-m3")
+memory_processor = Base_Memory_3(retrieval_model=retrieval_model)
+memory_processor.load_from_disk("/mnt/object/QA_memory")
 
 def load_model_and_tokenizer(model_path):
     """Loads the Causal LM model and tokenizer."""
@@ -64,7 +69,10 @@ def generate_predictions(model, tokenizer, dataset, device, max_new_tokens=50):
     logging.info("Generating predictions...")
     for i, example in enumerate(tqdm(dataset)):
         question = example['question']
-        context = example['context']
+        if 'context' in example:
+            context = example['context']
+        else:
+            context = str(memory_processor.rag_preprocess([question], 1))
         reference_answer = example['answer'] # Get the single answer string
 
         # Simple prompt for extractive QA with Llama Instruct

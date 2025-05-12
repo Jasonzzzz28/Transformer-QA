@@ -8,6 +8,12 @@ import time
 import os
 from prometheus_fastapi_instrumentator import Instrumentator
 from vllm import LLM, SamplingParams
+from data.rag.memory import Base_Memory_3
+from data.rag.retriever import Retriever
+
+retrieval_model = Retriever(model_name="/mnt/object/BAAI/bge-m3")
+memory_processor = Base_Memory_3(retrieval_model=retrieval_model)
+memory_processor.load_from_disk("/mnt/object/QA_memory")
 
 # Setup logging
 logging.basicConfig(
@@ -94,6 +100,8 @@ async def answer_question(request: QARequest):
     start_time = time.time()
     
     try:
+        context = memory_processor.rag_preprocess([request.question], 1)
+        request.question = "Context: " + context + "\nQuestion: " + request.question
         if use_vllm:
             answer = get_vllm_response(request.question)
         else:
