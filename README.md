@@ -343,7 +343,7 @@ The dataset will be built by parsing and processing multiple information sources
 
 - Git commit history: Commit messages and associated diffs will be analyzed to produce "why" and "what changed" style QA pairs.
 
-- Real QA data from [stackoverflow](https://stackoverflow.com/questions/tagged/huggingface)
+- Real world QA data: QA data from [stackoverflow](https://stackoverflow.com/questions/tagged/huggingface)
 
 The QA dataset will be generated in the following ways: 
 - Rule-based automatic generation (e.g., "What does this function do?", "Why was this line changed?").
@@ -353,7 +353,7 @@ Example structure of the data:
 ```python
 {
   "id": 0,
-  "category": "source code",
+  "source": "source_code",
   "context": "code name and its docstring",
   "question": "What does this function do?",
   "answer": "answer"
@@ -364,11 +364,29 @@ The offline data can be seen at [https://github.com/Jasonzzzz28/Transformer-QA/t
 
 **Data pipelines**
 
-Our data pipeline provides three services:
+Extract raw data from source code, git commit history and real world QA data. Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/data_pipeline/extract_data.py)
+```bash
+docker compose -f data/data_pipeline/docker-compose-etl.yaml run extract-data
+```
+Transform raw data into QA data with context
+- Source Code: Question is generated using the paraphrase of "What does the {type} {name} do?". Answer is generated Use Ministral-8B-Instruct-2410 to summarize the usage of the function/class given the docstring.
+- Git Commit History: Question is generated using the paraphrase of "What changed in commit {hash}?", "Who is the author of the commit {hash}?" and "When was the commit {hash} made?". Answer is generated using rule base extraction.
+- Real World QA Data: Use real world question and answer to construct the QA pairs.
 
-- extract-data: Extract data from its source. Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/data_pipeline/extract_data.py)
-- transform-data: Transform source data into QA data and split them into training, evaluation, online and production data. Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/data_pipeline/transform_data.py)
-- load-data: Load the entire offline data into object store.
+Then source Code and Git Commit History is combined as the **training data** and the **evaluation data** for model training and offline evaluation. Real World QA Data is splitted into **online data** and **product data** for online evaluation and product evaluation(close the feedback loop)
+
+Detailed implementation can be seen [here](https://github.com/Jasonzzzz28/Transformer-QA/blob/main/data/data_pipeline/transform_data.py)
+```bash
+# Start Ministral-8B-Instruct-2410 vllm server for data transformation
+bash data/data_pipeline/vllm_server.sh
+docker compose -f data/data_pipeline/docker-compose-etl.yaml run transform-data
+```
+Load Data
+Load the entire offline data into object store.
+```bash
+export RCLONE_CONTAINER=object-persist-jc13140
+docker compose -f data/data_pipeline/docker-compose-etl.yaml run load-data
+```
 
 **Online data**
 
